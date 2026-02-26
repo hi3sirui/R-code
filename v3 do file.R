@@ -38,6 +38,16 @@ v3 <- v3 %>%
 v3 <- v3 %>%
   mutate(age_2021 = trunc(age_2021))
 
+##making height to integer
+v3 <- v3 %>%
+  mutate(height_2021 = trunc(height_2021),
+         height_2024 = trunc(height_2024))
+
+##making weight to integer
+v3 <- v3 %>%
+  mutate(weight_2021 = trunc(weight_2021),
+         weight_2024 = trunc(weight_2024))
+
 ##imputing age data ----
 v3 <- v3 %>%
   mutate(
@@ -624,6 +634,9 @@ write.csv(v3, "ready to use.csv")
 
 
 
+
+
+
 #HEIGHT DATA----
 #cleaning logic see *working note* google doc
 # Updated height cleaner based on your reference mapping
@@ -678,9 +691,9 @@ weights_heights_overview <- weights_heights_overview %>%
 #   )
 # View(check_short)
 
-###Diagnostic dataset for weight_2021 BIVs----
-BIV_categories <- weights_heights_overview %>%
-  mutate(Cateogry = case_when(
+###Diagnostic dataset for height_2021 BIVs----
+h21_BIV_categories <- weights_heights_overview %>%
+  mutate(Category = case_when(
     #creating a new column named "Category"
     height_2021 >= 1000000 ~ "7-digit",
     height_2021 >= 100000  ~ "6-digit",
@@ -688,22 +701,53 @@ BIV_categories <- weights_heights_overview %>%
     height_2021 >= 1000    ~ "4-digit",
     height_2021 >= 100 & height_2021 < 140 ~ "100 <= x < 140",
     height_2021 >= 10 & height_2021 < 100   ~ "10 <= x < 100",
-    height_2021 > 0 & height_2021 < 10      ~ "0 < x < 10",
+    height_2021 > 0 & weight_2021 < 10      ~ "0 < x < 10",
     height_2021 == 0       ~ "x = 0",
     TRUE                   ~ "all others or NA"
   ))
-View(BIV_categories)
+View(h21_BIV_categories)
 
-###Summary table----
-weight_2021_BIVs <- biv_summary_data %>%
-  filter(biv_category != "Normal or NA") %>%
-  group_by(Criteria = biv_category) %>%
+h21_BIV_summary <- h21_BIV_categories %>%
+  # 1. Filter out "all others or NA"
+  filter(Category != "all others or NA") %>%
+  
+  # 2. Criteria and count
+  group_by(Criteria = Category) %>%
   summarise(n = n()) %>%
-  # This ensures the table follows your visual order
-  arrange(desc(Criteria))
 
-# View it
-print(BIV_Final_Table)
+  # 3. Sort by criteria
+  arrange(desc(Criteria))
+View(h21_BIV_summary)
+
+###BIV categories check against 2024----
+BIV_theory_check <- h21_BIV_categories %>%
+  # 1. Focus ONLY on the flagged participants, n = 325
+  filter(Category != "all others or NA") %>%
+  
+  # 2. Apply matching logic with a +/- 5cm buffer
+  mutate(Theory_Match = case_when(
+    # Theory A: Missing Zero (e.g., 16 -> 160)
+    abs((height_2021 * 10) - height_2024) <= 5 ~ "Missing Zero",
+    
+    # Theory B: Dropped Hundred (e.g., 68 -> 168)
+    abs((height_2021 + 100) - height_2024) <= 5 ~ "Dropped Hundred",
+    
+    # Check if 2024 data is missing
+    is.na(height_2024) ~ "No 2024 Data",
+    
+    # If it fits neither pattern even with the 5cm buffer
+    TRUE ~ "Other Error/No Match"
+  ))
+View(BIV_theory_check)
+
+### Summary Table for the Paper ----
+BIV_Theory_Summary_Table <- BIV_theory_check %>%
+  group_by(Theory_Match) %>%
+  summarise(n = n()) %>%
+  mutate(percentage = round(n / sum(n) * 100, 1))
+
+# View the final result
+View(BIV_Theory_Summary_Table)
 
 
 
