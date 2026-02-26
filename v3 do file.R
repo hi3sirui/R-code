@@ -1,3 +1,7 @@
+#READY TO USE V3 KEEP UPDATING----
+write.csv(v3_transfer, "ready to use.csv")
+
+
 v3 <- read.csv("L:/Auditdata/Students/Lexi/v3.csv") #v3: data frame
 library(dplyr)
 View(v3)
@@ -38,12 +42,12 @@ v3 <- v3 %>%
 v3 <- v3 %>%
   mutate(age_2021 = trunc(age_2021))
 
-##making height to integer
+##making height to integer ----
 v3 <- v3 %>%
   mutate(height_2021 = trunc(height_2021),
          height_2024 = trunc(height_2024))
 
-##making weight to integer
+##making weight to integer ----
 v3 <- v3 %>%
   mutate(weight_2021 = trunc(weight_2021),
          weight_2024 = trunc(weight_2024))
@@ -79,6 +83,11 @@ v3 <- v3 %>%
       )
     )
   )
+
+##removing participation histories----
+library(tidyverse)
+v3 <- v3 %>%
+  select(-par_1993,-par_1999, -par_2009, -par_2020)
 
 
 #sanity check: missing in 2021,  2024, OR both
@@ -147,8 +156,6 @@ ggplot(age_valid) +
 
 
 
-
-
 #WEIGHT DATA ----
 ##HES interval  ----
 v3 <- v3 %>%
@@ -193,7 +200,8 @@ weights_heights_overview <- v3 %>%
     weight_2021,
     weight_2024,
     height_2021,
-    height_2024
+    height_2024,
+    h21_flag
   )
 View(weights_heights_overview)
 #sanity check, n = 69720
@@ -625,8 +633,11 @@ ggplot(interval_comp, aes(x = Interval_Type, y = Weight, fill = Interval_Type)) 
   theme_minimal() +
   theme(legend.position = "none")
 
-#READY TO USE V3 KEEP UPDATING----
-write.csv(v3, "ready to use.csv")
+
+
+
+
+
 
 
 
@@ -639,44 +650,50 @@ write.csv(v3, "ready to use.csv")
 
 #HEIGHT DATA----
 #cleaning logic see *working note* google doc
-# Updated height cleaner based on your reference mapping
+
+###categorization function ---- 
 valid_height_logic <- function(h) {
   case_when(
-     #7-digit outliers: Divide by 10000 
+    #7-digit outliers: Divide by 10000 
     h >= 1000000 ~ h / 10000,
     
     #6-digit data: Divide by 1000
-    h >= 100000 & h <= 999999 ~ h / 1000,
+    h >= 100000 ~ h / 1000,
+    
+    #5-digit data: divide by 100
+    h >= 10000 ~ h / 100,
     
     #4-digit: divide by 10
-    h >= 1000 & h < 10000 ~ h / 10,
+    h >= 1000 ~ h / 10,
     
-    # Already in cm
-    h >= 100 & h < 1000 ~ h,
+    #for diagnotistics later
+    h >= 10 ~ h,
     
     # Catch-all
     TRUE ~ NA_real_ 
-  ) %>%
-    # Final Plausibility Filter: Keep only humanly possible heights
-    ifelse(. >= 100 & . <= 250, ., NA_real_)
+  ) 
 }
 
-#flagging any row the height_logic applies to
-height_2021_flag <- function(h) {
-  case_when(
-    h >= 100000 & h <= 999999 ~ "Extracted from 6-digit",
-    h >= 1000000              ~ "Extracted from 7-digit",
-    h >= 1000 & h < 10000     ~ "Converted mm to cm",
-    h >= 100 & h < 1000       ~ "Original (in cm)",
-    TRUE                      ~ "Invalid/Missing"
-  )
-}
-
-weights_heights_overview <- weights_heights_overview %>%
+###flagging by categories----
+v3 <- v3 %>%
   mutate(
-    height_2021_valid = valid_height_logic(height_2021),
-    h21_flag  = height_2021_flag(height_2021),
+    h21_valid = valid_height_logic(height_2021),
+    h21_flag = case_when(
+      h21_valid >= 1000000 ~ "7-digit",
+      h21_valid >= 100000 ~ "6-digit",
+      h21_valid >= 10000 ~ "5-digit",
+      h21_valid >= 1000 ~ "4-digit",
+      h21_valid >=140 & h21_valid<200 ~ "within reason",
+      h21_valid >=100 & h21_valid<140 ~ "100<=x<140",
+      h21_valid >=10 & h21_valid<100 ~ "10<=x<100",
+      h21_valid >0 & h21_valid<10 ~ "0<x<10",
+      h21_valid == 0 ~ "x=0",
+      TRUE ~ "NA"
   )
+) %>%
+
+
+
 
 # check_short <- weights_heights_overview %>%
 #   filter(
@@ -692,8 +709,8 @@ weights_heights_overview <- weights_heights_overview %>%
 # View(check_short)
 
 ###Diagnostic dataset for height_2021 BIVs----
-h21_BIV_categories <- weights_heights_overview %>%
-  mutate(Category = case_when(
+v3 <- v3 %>%
+  mutate(h21_BIV_category = case_when(
     #creating a new column named "Category"
     height_2021 >= 1000000 ~ "7-digit",
     height_2021 >= 100000  ~ "6-digit",
@@ -705,19 +722,19 @@ h21_BIV_categories <- weights_heights_overview %>%
     height_2021 == 0       ~ "x = 0",
     TRUE                   ~ "all others or NA"
   ))
-View(h21_BIV_categories)
+View(v3)
 
-h21_BIV_summary <- h21_BIV_categories %>%
+h21_BIV_summary <- v3 %>%
   # 1. Filter out "all others or NA"
-  filter(Category != "all others or NA") %>%
+  filter(h21_BIV_category != "all others or NA") %>%
   
   # 2. Criteria and count
-  group_by(Criteria = Category) %>%
+  group_by(Criteria = h21_BIV_category) %>%
   summarise(n = n()) %>%
 
   # 3. Sort by criteria
   arrange(desc(Criteria))
-View(h21_BIV_summary)
+View(h21_BIV_summary) #n = 326
 
 ###BIV categories check against 2024----
 BIV_theory_check <- h21_BIV_categories %>%
