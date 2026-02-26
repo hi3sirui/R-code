@@ -615,8 +615,95 @@ ggplot(interval_comp, aes(x = Interval_Type, y = Weight, fill = Interval_Type)) 
   theme_minimal() +
   theme(legend.position = "none")
 
+#READY TO USE V3 KEEP UPDATING----
+write.csv(v3, "ready to use.csv")
 
 
+
+
+
+
+
+#HEIGHT DATA----
+#cleaning logic see *working note* google doc
+# Updated height cleaner based on your reference mapping
+valid_height_logic <- function(h) {
+  case_when(
+     #7-digit outliers: Divide by 10000 
+    h >= 1000000 ~ h / 10000,
+    
+    #6-digit data: Divide by 1000
+    h >= 100000 & h <= 999999 ~ h / 1000,
+    
+    #4-digit: divide by 10
+    h >= 1000 & h < 10000 ~ h / 10,
+    
+    # Already in cm
+    h >= 100 & h < 1000 ~ h,
+    
+    # Catch-all
+    TRUE ~ NA_real_ 
+  ) %>%
+    # Final Plausibility Filter: Keep only humanly possible heights
+    ifelse(. >= 100 & . <= 250, ., NA_real_)
+}
+
+#flagging any row the height_logic applies to
+height_2021_flag <- function(h) {
+  case_when(
+    h >= 100000 & h <= 999999 ~ "Extracted from 6-digit",
+    h >= 1000000              ~ "Extracted from 7-digit",
+    h >= 1000 & h < 10000     ~ "Converted mm to cm",
+    h >= 100 & h < 1000       ~ "Original (in cm)",
+    TRUE                      ~ "Invalid/Missing"
+  )
+}
+
+weights_heights_overview <- weights_heights_overview %>%
+  mutate(
+    height_2021_valid = valid_height_logic(height_2021),
+    h21_flag  = height_2021_flag(height_2021),
+  )
+
+# check_short <- weights_heights_overview %>%
+#   filter(
+#     height_2021>=10 & height_2021<=99) %>%
+#   select(
+#     ipnr,
+#     sex_valid,
+#     age_2021,
+#     height_2021, 
+#     height_2021_valid,
+#     height_2024
+#   )
+# View(check_short)
+
+###Diagnostic dataset for weight_2021 BIVs----
+BIV_categories <- weights_heights_overview %>%
+  mutate(Cateogry = case_when(
+    #creating a new column named "Category"
+    height_2021 >= 1000000 ~ "7-digit",
+    height_2021 >= 100000  ~ "6-digit",
+    height_2021 >= 10000   ~ "5-digit",
+    height_2021 >= 1000    ~ "4-digit",
+    height_2021 >= 100 & height_2021 < 140 ~ "100 <= x < 140",
+    height_2021 >= 10 & height_2021 < 100   ~ "10 <= x < 100",
+    height_2021 > 0 & height_2021 < 10      ~ "0 < x < 10",
+    height_2021 == 0       ~ "x = 0",
+    TRUE                   ~ "all others or NA"
+  ))
+View(BIV_categories)
+
+###Summary table----
+weight_2021_BIVs <- biv_summary_data %>%
+  filter(biv_category != "Normal or NA") %>%
+  group_by(Criteria = biv_category) %>%
+  summarise(n = n()) %>%
+  # This ensures the table follows your visual order
+  arrange(desc(Criteria))
+
+# View it
+print(BIV_Final_Table)
 
 
 
