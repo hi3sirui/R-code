@@ -1,10 +1,11 @@
 #READY TO USE V3 KEEP UPDATING----
-write.csv(v3_transfer, "ready to use.csv")
-
-
-v3 <- read.csv("L:/Auditdata/Students/Lexi/v3.csv") #v3: data frame
 library(dplyr)
+
+v3 <- read.csv("L:/Auditdata/Students/Lexi/⭐⭐⭐Data_Lexi_v3⭐⭐⭐.csv")
 View(v3)
+
+
+
 
 #PREPARATION ----
 ##renaming columns ----
@@ -192,18 +193,7 @@ v3 <- v3 %>%
     )
   )
 
-weights_heights_overview <- v3 %>%
-  select(
-    ipnr,
-    age_2021,
-    sex_valid,
-    weight_2021,
-    weight_2024,
-    height_2021,
-    height_2024,
-    h21_flag
-  )
-View(weights_heights_overview)
+
 #sanity check, n = 69720
 #sum(is.na(v3$weight_2024_valid_male))
 #sanity check, n = 48026
@@ -331,7 +321,16 @@ ggplot(v3, aes(x=weight_2024_valid_male)) +
 
 ##plausibility approach----
 ###plaus weight interval----
-weights_heights_overview <- weights_heights_overview %>%
+weights_overview <- v3 %>%
+  select(
+    ipnr,
+    age_2021,
+    sex_valid,
+    weight_2021,
+    weight_2024
+  )
+
+weights_overview <- weights_overview %>%
   mutate(
     w21_plaus = case_when(
       weight_2021>=40 & weight_2021<=192 ~ weight_2021,
@@ -339,7 +338,12 @@ weights_heights_overview <- weights_heights_overview %>%
     )
   )
 
-weights_heights_overview <- weights_heights_overview %>%
+weights_overview  <- weights_overview %>%
+  mutate(
+    w24_plaus = if_else(weight_2024>=40 & weight_2024<=192, weight_2024, NA_real_)
+  )
+
+weights_overview <- weights_overview %>%
   mutate(
     w24_plaus_F = case_when(
       weight_2024>=40 & weight_2024<=192 & sex_valid == "Female" ~ weight_2024,
@@ -347,7 +351,7 @@ weights_heights_overview <- weights_heights_overview %>%
     )
   )
 
-weights_heights_overview <- weights_heights_overview %>%
+weights_overview <- weights_overview %>%
   mutate(
     w24_plaus_M = case_when(
       weight_2024>=40 & weight_2024<=192 & sex_valid == "Male" ~ weight_2024,
@@ -355,10 +359,9 @@ weights_heights_overview <- weights_heights_overview %>%
     )
   )
 
-weights_heights_overview  <- weights_heights_overview %>%
-  mutate(
-    w24_plaus = if_else(weight_2024>=40 & weight_2024<=192, weight_2024, NA_real_)
-  )
+View(weights_overview)
+
+
 
 ###plot 4: 2021 plausible weight (females only) ----
 library(ggplot2)
@@ -366,11 +369,11 @@ library(scales)
 library(dplyr)
 
 binwidth <- 2
-n21_plaus <- length(na.omit(weights_heights_overview$w21_plaus))
-n24_plaus_F <- length(na.omit(weights_heights_overview$w24_plaus_F))
-n24_plaus_M <- length(na.omit(weights_heights_overview$w24_plaus_M))
+n21_plaus <- length(na.omit(weights_overview$w21_plaus))
+n24_plaus_F <- length(na.omit(weights_overview$w24_plaus_F))
+n24_plaus_M <- length(na.omit(weights_overview$w24_plaus_M))
 
-ggplot(weights_heights_overview, aes(x=w21_plaus)) +
+ggplot(weights_overview, aes(x=w21_plaus)) +
   # Histogram
   geom_histogram(
     binwidth = 2, 
@@ -400,7 +403,7 @@ ggplot(weights_heights_overview, aes(x=w21_plaus)) +
   theme_minimal()
 
 ###plot 5: 2024 valid weight females ----
-ggplot(weights_heights_overview, aes(x=w24_plaus_F)) +
+ggplot(weights_overview, aes(x=w24_plaus_F)) +
   # Histogram
   geom_histogram(
     binwidth = 2, 
@@ -430,7 +433,7 @@ ggplot(weights_heights_overview, aes(x=w24_plaus_F)) +
   theme_minimal()
 
 ###plot 6: 2024 male weight distribution----
-ggplot(weights_heights_overview, aes(x=w24_plaus_M)) +
+ggplot(weights_overview, aes(x=w24_plaus_M)) +
   # Histogram
   geom_histogram(
     binwidth = 2, 
@@ -482,9 +485,9 @@ kable(Weight_valid, digits = 2, caption = "Summary statistics of valid weight by
 ###2024----
 sv <- function(x) unclass(summary(x)) 
 weights_plaus <- data.frame(
-  All_2021 = sv(weights_heights_overview$w21_plaus),
-  Female_2024 = sv(weights_heights_overview$w24_plaus_F),
-  Male_2024 = sv(weights_heights_overview$w24_plaus_M),
+  All_2021 = sv(weights_overview$w21_plaus),
+  Female_2024 = sv(weights_overview$w24_plaus_F),
+  Male_2024 = sv(weights_overview$w24_plaus_M),
   check.names = FALSE
 )
 library(knitr)
@@ -498,11 +501,11 @@ quantile(v3$weight_2024_valid_female, probs = c(0.025, 0.975), na.rm = TRUE)
 quantile(v3$weight_2024_valid_male, probs = c(0.025, 0.975), na.rm = TRUE)
 
 ###middle 95% - 2024----
-quantile(weights_heights_overview$w21_plaus, probs = c(0.025, 0.975), na.rm = TRUE)
+quantile(weights_overview$w21_plaus, probs = c(0.025, 0.975), na.rm = TRUE)
 
-quantile(weights_heights_overview$w24_plaus_F, probs = c(0.025, 0.975), na.rm = TRUE)
+quantile(weights_overview$w24_plaus_F, probs = c(0.025, 0.975), na.rm = TRUE)
 
-quantile(weights_heights_overview$w24_plaus_M, probs = c(0.025, 0.975), na.rm = TRUE)
+quantile(weights_overview$w24_plaus_M, probs = c(0.025, 0.975), na.rm = TRUE)
 
 ###n (filled both waves) under different intervals----
 #HES interval
@@ -510,12 +513,12 @@ sum(!is.na(v3$weight_2021_valid) & !is.na(v3$weight_2024_valid)) # n = 14747
 sum(!is.na(v3$weight_2021_valid)&!is.na(v3$weight_2024_valid_female)) #n = 14263
 
 #plausibility interval
-sum(!is.na(weights_heights_overview$w21_plaus) & !is.na(weights_heights_overview$w24_plaus)) #n = 17419
-sum(!is.na(weights_heights_overview$w21_plaus) & !is.na(weights_heights_overview$w24_plaus_F)) #n = 17419
+sum(!is.na(weights_overview$w21_plaus) & !is.na(weights_overview$w24_plaus)) #n = 17419
+sum(!is.na(weights_overview$w21_plaus) & !is.na(weights_overview$w24_plaus_F)) #n = 17419
 
 ## two-curve overlay on 2021 data----
 ###plot 7: 2021 HES and plausible intervals on raw 2021 weight data----
-ggplot(weights_heights_overview) +
+ggplot(weights_overview) +
   # THE BACKGROUND: Raw 2021 data with no modifiers
   geom_histogram(
     aes(x = weight_2021), 
@@ -551,12 +554,12 @@ ggplot(weights_heights_overview) +
   theme_minimal()
 
 ###plot 8: 2024 HES and plausible intervals on raw 2021 weight data----
-sum(!is.na(weights_heights_overview$w21_plaus) & !is.na(weights_heights_overview$w24_plaus)) #n = 17419
+sum(!is.na(weights_overview$w21_plaus) & !is.na(weights_overview$w24_plaus)) #n = 17419
 
-n24_plaus <- length(na.omit(weights_heights_overview$weight_2024_plaus))
+n24_plaus <- length(na.omit(weights_overview$w24_plaus))
 n24_valid <- length(na.omit(v3$weight_2024_valid))
 
-ggplot(weights_heights_overview) +
+ggplot(weights_overview) +
   # THE BACKGROUND: Raw 2024 data with no modifiers
   geom_histogram(
     aes(x = weight_2024), 
@@ -574,7 +577,7 @@ ggplot(weights_heights_overview) +
   
   # CURVE 2: Plausibility Interval (Widened)
   geom_density(
-    aes(x = weight_2024_plaus, y = after_stat(density) * n24_plaus * binwidth, color = "Plausible (40-192)"), 
+    aes(x = w24_plaus, y = after_stat(density) * n24_plaus * binwidth, color = "Plausible (40-192)"), 
     linewidth = 1, adjust = 1.5, na.rm = TRUE
   ) +
   
@@ -597,11 +600,11 @@ library(tidyr)
 library(dplyr)
 
 # We want to keep weights_heights_overview and add 'age' and 'region' from v3
-weights_heights_overview <- weights_heights_overview %>%
+weights_overview <- weights_overview %>%
   left_join(v3 %>% select(ipnr, weight_2021_valid, weight_2024_valid, weight_2024_valid_female, weight_2024_valid_male), by = "ipnr")
 
 # 1. Create a temporary 'long' dataframe for the comparison
-interval_comp <- weights_heights_overview %>%
+interval_comp <- weights_overview %>%
   select(weight_2021_valid, w21_plaus) %>%
   pivot_longer(cols = everything(), names_to = "Interval_Type", values_to = "Weight") %>%
   mutate(Interval_Type = case_when(
@@ -648,13 +651,18 @@ ggplot(interval_comp, aes(x = Interval_Type, y = Weight, fill = Interval_Type)) 
 
 
 
+
 #HEIGHT DATA----
 #cleaning logic see *working note* google doc
 
-###categorization function ---- 
+##filtering logic ----
 valid_height_logic <- function(h) {
+  if (!is.na(h) && h >= 200 && h < 1000) {
+    h <- (h %% 100) + 100
+  }
+  
   case_when(
-    #7-digit outliers: Divide by 10000 
+    #7-digit outliers: Divide by 10000
     h >= 1000000 ~ h / 10000,
     
     #6-digit data: Divide by 1000
@@ -666,105 +674,69 @@ valid_height_logic <- function(h) {
     #4-digit: divide by 10
     h >= 1000 ~ h / 10,
     
-    #for diagnotistics later
-    h >= 10 ~ h,
+    #Theory A: missing 0
+    h >= 1 & h <=18 ~ h*10,
     
-    # Catch-all
-    TRUE ~ NA_real_ 
-  ) 
+    #Theory B: dropped hundred
+    h > 18 & h <100  ~ h+100,
+    
+    #within reason
+    h >=140  & h <=200  ~ h,
+    
+    #suspected error
+    h >=100  & h <140  ~ h,
+    
+    #error
+    h==0 ~ h,
+    
+    TRUE ~ NA_real_
+  )
 }
 
-###flagging by categories----
+##valid 21 funnel ----
 v3 <- v3 %>%
   mutate(
-    h21_valid = valid_height_logic(height_2021),
+    h21_valid = sapply(height_2021, valid_height_logic),
+
     h21_flag = case_when(
-      h21_valid >= 1000000 ~ "7-digit",
-      h21_valid >= 100000 ~ "6-digit",
-      h21_valid >= 10000 ~ "5-digit",
-      h21_valid >= 1000 ~ "4-digit",
-      h21_valid >=140 & h21_valid<200 ~ "within reason",
-      h21_valid >=100 & h21_valid<140 ~ "100<=x<140",
-      h21_valid >=10 & h21_valid<100 ~ "10<=x<100",
-      h21_valid >0 & h21_valid<10 ~ "0<x<10",
-      h21_valid == 0 ~ "x=0",
-      TRUE ~ "NA"
+      height_2021 >= 1000000 ~ "7-digit",
+      height_2021 >= 100000 ~ "6-digit",
+      height_2021 >= 10000 ~ "5-digit",
+      height_2021 >= 1000 ~ "4-digit",
+      
+      height_2021 > 200 & height_2021 < 1000 ~ "suspected error",
+      height_2021 >=140 & height_2021 <=200 ~ "within reason",
+      height_2021 >=100 & height_2021 < 140 ~ "suspected error",
+      height_2021 >10 & height_2021 <= 18 ~ "Theory A",
+      height_2021 >=1 & height_2021 <=10 ~ "suspected error",
+      height_2021 > 18 & height_2021 < 100 ~ "Theory B",
+      height_2021 == 0 ~ "x=0",
+      TRUE ~"NA"
+    ),
+    h21_valid = round(h21_valid)
   )
-) %>%
-
-
-
-
-# check_short <- weights_heights_overview %>%
-#   filter(
-#     height_2021>=10 & height_2021<=99) %>%
-#   select(
-#     ipnr,
-#     sex_valid,
-#     age_2021,
-#     height_2021, 
-#     height_2021_valid,
-#     height_2024
-#   )
-# View(check_short)
-
-###Diagnostic dataset for height_2021 BIVs----
-v3 <- v3 %>%
-  mutate(h21_BIV_category = case_when(
-    #creating a new column named "Category"
-    height_2021 >= 1000000 ~ "7-digit",
-    height_2021 >= 100000  ~ "6-digit",
-    height_2021 >= 10000   ~ "5-digit",
-    height_2021 >= 1000    ~ "4-digit",
-    height_2021 >= 100 & height_2021 < 140 ~ "100 <= x < 140",
-    height_2021 >= 10 & height_2021 < 100   ~ "10 <= x < 100",
-    height_2021 > 0 & weight_2021 < 10      ~ "0 < x < 10",
-    height_2021 == 0       ~ "x = 0",
-    TRUE                   ~ "all others or NA"
-  ))
 View(v3)
 
-h21_BIV_summary <- v3 %>%
-  # 1. Filter out "all others or NA"
-  filter(h21_BIV_category != "all others or NA") %>%
+heights_overview <- v3 %>%
+  select(ipnr, height_2021, height_2024, h21_valid, h21_flag)
+View(heights_overview)
+
+h21_valid_check <- heights_overview %>%
+  filter(h21_flag %in% c("7-digit", "6-digit", "5-digit", "4-digit", 
+                         "Theory A", 
+                         "Theory B", 
+                         "suspected error", 
+                         "x=0")) %>%
   
-  # 2. Criteria and count
-  group_by(Criteria = h21_BIV_category) %>%
-  summarise(n = n()) %>%
-
-  # 3. Sort by criteria
-  arrange(desc(Criteria))
-View(h21_BIV_summary) #n = 326
-
-###BIV categories check against 2024----
-BIV_theory_check <- h21_BIV_categories %>%
-  # 1. Focus ONLY on the flagged participants, n = 325
-  filter(Category != "all others or NA") %>%
+  # 2. Select the columns for your overview
+  select(height_2021, height_2024, h21_valid, h21_flag) %>%
   
-  # 2. Apply matching logic with a +/- 5cm buffer
-  mutate(Theory_Match = case_when(
-    # Theory A: Missing Zero (e.g., 16 -> 160)
-    abs((height_2021 * 10) - height_2024) <= 5 ~ "Missing Zero",
-    
-    # Theory B: Dropped Hundred (e.g., 68 -> 168)
-    abs((height_2021 + 100) - height_2024) <= 5 ~ "Dropped Hundred",
-    
-    # Check if 2024 data is missing
-    is.na(height_2024) ~ "No 2024 Data",
-    
-    # If it fits neither pattern even with the 5cm buffer
-    TRUE ~ "Other Error/No Match"
-  ))
-View(BIV_theory_check)
-
-### Summary Table for the Paper ----
-BIV_Theory_Summary_Table <- BIV_theory_check %>%
-  group_by(Theory_Match) %>%
-  summarise(n = n()) %>%
-  mutate(percentage = round(n / sum(n) * 100, 1))
-
-# View the final result
-View(BIV_Theory_Summary_Table)
+  # 3. Add a difference check to see how far off the raw data is from 2024
+  mutate(gap_to_h24 = abs(h21_valid - height_2024)) %>%
+  
+  # 4. Sort by flag so you can review them in groups
+  arrange(h21_flag)
+View(h21_valid_check)
 
 
 
@@ -774,29 +746,6 @@ View(BIV_Theory_Summary_Table)
 
 
 
-
-
-
-
-
-
-
-# #HEIGHT DATA
-# sum(!is.na(v3$height_2021)) #n = 34689
-# sum(!is.na(v3$height_2024)) #n = 27785
-# sum(!is.na(v3$height_2021) & !is.na(v3$height_2024)) #n = 17415
-# 
-# 
-# # heights_age_weights_2years <- v3 %>%
-# #   select(
-# #     ipnr,
-# #     age_2021,
-# #     height_2021,
-# #     weight_2021,
-# #     height_2024,
-# #     weight_2024
-# #   )
-# # View(heights_age_weights_2years)
 # 
 # #2021 HEIGHT DISTRIBUTION HISTOGRAM
 # library(ggplot2)
