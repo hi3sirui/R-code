@@ -738,7 +738,9 @@ h21_valid_check <- heights_overview %>%
   arrange(h21_flag)
 View(h21_valid_check)
 
-
+sum(!is.na(v3$height_2021))
+sum(v3$height_2021>=140 & v3$height_2021<=200, na.rm=TRUE)
+sum(v3$h21_flag != "within reason" & v3$h21_flag != "NA", na.rm = TRUE)
 
 
 
