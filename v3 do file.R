@@ -655,7 +655,7 @@ ggplot(interval_comp, aes(x = Interval_Type, y = Weight, fill = Interval_Type)) 
 #HEIGHT DATA----
 #cleaning logic see *working note* google doc
 
-##filtering logic ----
+##transformation logic ----
 valid_height_logic <- function(h) {
   if (!is.na(h) && h >= 200 && h < 1000) {
     h <- (h %% 100) + 100
@@ -744,53 +744,125 @@ sum(v3$h21_flag != "within reason" & v3$h21_flag != "NA", na.rm = TRUE)
 
 
 
+##plot 10: height_2021 distribution with two density curves overlay----
+test <- test %>%
+  mutate(
+    height_subs = case_when(
+      # If "within reason", keep the math-cleaned 2021 height
+      h21_flag == "within reason" ~ h21_valid,
+      
+      # If NOT "within reason", substitute ONLY if 2024 is valid and in range
+      h21_flag != "within reason" & 
+        !is.na(height_2024) & 
+        height_2024 >= 140 & height_2024 <= 200 ~ height_2024,
+      
+      # Otherwise, set to NA
+      TRUE ~ NA_real_
+    )
+  )
+
+binwidth_h <- 2
+h21 <- sum(test$h21_flag == "within reason", na.rm = TRUE) #n = 34317
+h_final <- sum(!is.na(test$height_subs)) #n = 34487
+
+ggplot(test) +
+  geom_histogram(
+    aes(x = height_2021), 
+    binwidth = binwidth_h, 
+    fill = "grey90", color = "white", alpha = 0.8
+  ) +
+  
+  # BLUE CURVE: Original clean data (34,317)
+  geom_density(
+    data = subset(test, h21_flag == "within reason"),
+    aes(x = h21_valid, y = after_stat(density) * h21 * binwidth_h, color = "height_2021 treated"), 
+    linewidth = 1.2, linetype = "dashed", adjust = 1.5, na.rm = TRUE
+  ) +
+
+  # RED CURVE:Final data with substitutions (34,487)
+  geom_density(
+    aes(x = height_subs, y = after_stat(density) * h_final * binwidth_h, color = "height_2021 treated with height_2024 substitution"), 
+    linewidth = 0.8, linetype = "solid", adjust = 1.5, na.rm = TRUE
+  ) +
+  
+  scale_color_manual(values = c(
+    "height_2021 treated" = "purple4", 
+    "height_2021 treated with height_2024 substitution" = "ivory3"
+  )) +
+  scale_x_continuous(limits = c(100, 220), breaks = seq(100, 220, 10)) + 
+  scale_y_continuous(labels = scales::comma) +
+  
+  labs(
+    title = "Impact of 2024 Substitution on 2021 Height Distribution",
+    subtitle = paste0("Total Cleaned: ", scales::comma(h_final), " (Rescued 170 outliers)"),
+    x = "Height (cm)", 
+    y = "Number of Participants", # Change this string to whatever you like
+    color = "Density Curve"
+  ) +
+  theme_minimal()
+
+##plot 11: boxplot visualizing outliers and treated 2021----
+summary(test$h21_valid)
+summary(test$height_subs)
+
+# Gray (Raw 21), Orange (Raw 24), and Blue (Treated 21)
+vision_friendly_colors <- c(
+  "Raw 2021" = "#999999",     # Neutral Gray
+  "Raw 2024" = "#E69F00",     # Vivid Orange
+  "Treated 2021" = "#56B4E9"  # Sky Blue
+)
+
+# 2. Generate the Boxplot
+ggplot(plot_data_box, aes(x = Source, y = Height, fill = Source)) +
+  # Boxplot with outlines that contrast against the fills
+  geom_boxplot(outlier.alpha = 0.2, outlier.size = 1, color = "black") +
+  
+  # SCALE: Keeping the Log10 scale for the 1,000,000 outliers
+  scale_y_log10(
+    breaks = c(1, 10, 140, 168, 200, 1000, 10000, 100000, 1000000),
+    labels = scales::comma
+  ) +
+  
+  # Apply the vision-friendly manual scale
+  scale_fill_manual(values = vision_friendly_colors) +
+  
+  # THEME & LABELS
+  labs(
+    title = "Comparison of Raw Heights vs. Treated Distribution",
+    x = "Data Source",
+    y = "Height (cm, Log Scale)"
+  ) +
+  theme_minimal() +
+  # Add white grid lines for better contrast on the log scale
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    axis.title = element_text(face = "bold")
+  )
 
 
 
 
-# 
-# #2021 HEIGHT DISTRIBUTION HISTOGRAM
-# library(ggplot2)
-# library(scales)
-# library(dplyr)
-# 
-# binwidth <- 2
-# n <- nrow(v3)
-# 
-# Height_2021 <- # 1. Recalculate n correctly
-#   n_count <- nrow(v3)
-# 
-# ggplot(v3, aes(x = height_2021)) +
-#   # Histogram
-#   geom_histogram(
-#     binwidth = 2, 
-#     fill = "antiquewhite", 
-#     color = "white", 
-#     alpha = 0.7
-#   ) +
-#   # Density Curve - Simplified Scaling
-#   geom_density(
-#     aes(y = after_stat(density) * n_count * 2, color = "height 2021"), 
-#     linewidth = 1, 
-#     adjust=1.5,
-#     na.rm = TRUE
-#   ) +
-#   # Manual Axis Limits (Adjust these to fit your data)
-#   # Assuming height is between 140cm and 200cm
-#   scale_x_continuous(limits = c(140, 200), breaks = seq(140, 200, 10)) +
-#   
-#   # REMOVED breaks_width(200) to stop the overlapping numbers
-#   scale_y_continuous(labels = comma) + 
-#   
-#   scale_color_manual(
-#     name = "Height Data Source",
-#     values = c("height 2021" = "lightblue")
-#   ) + 
-#   labs(
-#     title = "2021 Height Distribution",
-#     x = "Height (cm)",
-#     y = "Number of Participants"
-#   ) +
-#   theme_minimal()
+
+
+
+
+#BMI CALCULATION----
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
