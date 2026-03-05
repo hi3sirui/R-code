@@ -1012,7 +1012,7 @@ comparisons <- list(
   h_O_v_impt   = c("height_2021", "h_impt")
 )
 
-## Run the SMD for each pair and extract the 'estimate'----
+## SMD for each pair----
 smd_results <- lapply(comparisons, function(pair) {
   df_sub <- v3_long %>% filter(Source %in% pair)
   result <- smd(df_sub$Value, df_sub$Status, na.rm = TRUE)
@@ -1041,11 +1041,119 @@ unlist(smd_results)
 
 
 
-#BMI CALCULATION----
+#BMI----
+##w21_plaus & h_impt----
+#I) 30-34.99kg/m2, II) 35-39.99kg/m2, and III) > 40kg/m2
+v3 <- v3 %>%
+  mutate(
+    BMI_21 = w21_plaus / ((h_impt / 100)^2),
+    BMI_24 = w24_plaus / ((h_impt / 100)^2)
+  )
+
+v3 <- v3 %>%
+  mutate(across(c(BMI_21, BMI_24), 
+                ~case_when(
+                  . < 18.5 ~ "Underweight",
+                  . >= 18.5 & . < 25 ~ "Healthy",
+                  . >= 25 & . < 30 ~ "Overweight",
+                  . >= 30 & . <35 ~ "Obese I",
+                  . >=35 & . < 40 ~ "Obese II",
+                  . >=40 ~ "Obese III"
+                ), 
+                .names = "{.col}_label"))
+
+summary(v3$BMI_24)
+
+##plot 12: scatter plot----
+library(ggplot2)
+
+ggplot(v3, aes(x = BMI_21, y = BMI_24)) +
+  # Use very low alpha (0.1) due to the large N = 44,834
+  geom_point(alpha = 0.1, color = "midnightblue") +
+  
+  # Add the 'No Change' reference line
+  geom_abline(intercept = 0, slope = 1, color = "orange", linetype = "dashed", size = 1) +
+  
+  # Focus on the realistic BMI range (15 to 50)
+  coord_cartesian(xlim = c(15, 50), ylim = c(15, 50)) +
+  
+  labs(
+    title = "BMI Trajectory: 2021 and 2024",
+    subtitle = "Points above the red line increased BMI; points below decreased.",
+    x = "BMI in 2021 (Rescued/Substituted)",
+    y = "BMI in 2024 (Rescued/Substituted)"
+  ) +
+  theme_minimal()
+
+library(ggplot2)
+
+###BMI density trajectory
+# ggplot(v3, aes(x = BMI_21, y = BMI_24)) +
+#   # Hexbins show where the most people 'clump'
+#   geom_hex(bins = 60) + 
+#   
+#   # The 45-degree line (using the updated 'linewidth')
+#   geom_abline(intercept = 0, slope = 1, color = "white", linetype = "dashed", linewidth = 0.8) +
+#   
+#   # Better color scale to see the density
+#   scale_fill_viridis_c(option = "magma") +
+#   
+#   # Expand limits slightly to see the rescued outliers
+#   coord_cartesian(xlim = c(15, 60), ylim = c(15, 60)) +
+#   
+#   labs(
+#     title = "BMI Density Trajectory (2021 vs 2024)",
+#     subtitle = "Brightest areas show where most participants land",
+#     x = "BMI 2021 (Rescued/Substituted)",
+#     y = "BMI 2024 (Rescued/Substituted)",
+#     fill = "Count"
+#   ) +
+#   theme_minimal()
+
+library(ggplot2)
+library(tidyr)
+
+##plot 13: BMI 21 & 24 density overlay----
+# Reshape just the BMI columns for easy plotting
+bmi_overlay_data <- v3 %>%
+  select(BMI_21, BMI_24) %>%
+  pivot_longer(everything(), names_to = "Year", values_to = "BMI") %>%
+  mutate(Year = if_else(Year == "BMI_21", "2021", "2024")) %>%
+  filter(!is.na(BMI))
+
+# Create the overlay plot
+ggplot(bmi_overlay_data, aes(x = BMI, fill = Year)) +
+  geom_density(alpha = 0.4) +
+  scale_fill_manual(values = c("2021" = "steelblue1", "2024" = "grey2")) +
+  coord_cartesian(xlim = c(15, 70)) + # Focused range for clinical relevance
+  labs(
+    title = "Population BMI Shift: 2021 vs 2024",
+    x = "Body Mass Index (BMI)",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+##summary statistics----
+quantile(v3$BMI_21, probs = c(0.025, 0.975), na.rm = TRUE)
+quantile(v3$BMI_24, probs = c(0.025, 0.975), na.rm = TRUE)
+sd(v3$BMI_21, na.rm = TRUE)
+sd(v3$BMI_24, na.rm = TRUE)
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+#LS & BMI----
 
 
 
