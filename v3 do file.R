@@ -472,11 +472,6 @@ w24_hes_sd <- sd(v3$w24_hes, na.rm = TRUE)
 w21_plaus_sd <- sd(v3$w21_plaus, na.rm = TRUE)
 w24_plaus_sd <- sd(v3$w24_plaus, na.rm = TRUE)
 
-w21_hes_sd
-w24_hes_sd
-w21_plaus_sd
-w24_plaus_sd
-
 #sanity check
 #sum(is.na(v3$weight_2024_valid_female)) #n = 48026
 
@@ -528,7 +523,7 @@ quantile(v3$w24_plaus_f, probs = c(0.025, 0.975), na.rm = TRUE)
 
 quantile(v3$w24_plaus_m, probs = c(0.025, 0.975), na.rm = TRUE)
 
-###n (filled both waves) under different intervals----
+###under different intervals----
 #HES interval
 sum(!is.na(v3$w21_hes) & !is.na(v3$w24_hes)) # n = 14747
 sum(!is.na(v3$w21_hes)&!is.na(v3$w24_hes_f)) #n = 14263
@@ -735,31 +730,6 @@ v3 <- v3 %>%
   )
 View(v3)
 
-heights_overview <- v3 %>%
-  select(ipnr, height_2021, height_2024, h21_valid, h21_flag)
-View(heights_overview)
-
-h21_valid_check <- heights_overview %>%
-  filter(h21_flag %in% c("7-digit", "6-digit", "5-digit", "4-digit", 
-                         "Theory A", 
-                         "Theory B", 
-                         "suspected error", 
-                         "x=0")) %>%
-  
-  # 2. Select the columns for your overview
-  select(height_2021, height_2024, h21_valid, h21_flag) %>%
-  
-  # 3. Add a difference check to see how far off the raw data is from 2024
-  mutate(gap_to_h24 = abs(h21_valid - height_2024)) %>%
-  
-  # 4. Sort by flag so you can review them in groups
-  arrange(h21_flag)
-View(h21_valid_check)
-
-
-h21_valid_check %>% 
-  count(h21_flag)
-
 sum(!is.na(v3$height_2021))
 sum(v3$height_2021>=140 & v3$height_2021<=200, na.rm=TRUE)
 
@@ -769,16 +739,16 @@ sum(v3$height_2021>=140 & v3$height_2021<=200, na.rm=TRUE)
 v3 <- v3 %>%
   mutate(
     h_impt = case_when(
-      # If "within reason", keep the math-cleaned 2021 height
-      h21_flag == "within reason" ~ h21_valid,
-      
+      # If "within reason," containining the word "digit," and "Theory" to cover the digit-fixes, keep the math-cleaned 2021 height
+      h21_flag == "within reason" | 
+        grepl("digit", h21_flag) | 
+        h21_flag %in% c("Theory A", "Theory B") ~ h21_valid,
+
       # If NOT "within reason", substitute ONLY if 2024 is valid and in range
-      h21_flag != "within reason" & 
+      h21_flag %in% c("suspected error", "x=0") & 
         !is.na(height_2024) & 
         height_2024 >= 140 & height_2024 <= 200 ~height_2024,
-      
-      # Otherwise, set to NA
-      TRUE ~ NA_real_
+        TRUE ~ NA_real_
     )
   )
 
@@ -786,23 +756,24 @@ v3 <- v3 %>%
 v3 <- v3 %>%
   mutate(
     h_impt_flag = case_when(
-        h21_flag == "within reason" ~ "2021 Original",
-        h21_flag != "within reason" & !is.na(height_2024) ~ "Substituted from 2024",
-        TRUE ~ "NA"
-      )
+      # 1. THE 2021 GROUP: Includes "within reason", math rescues (digit-fixes), and Theories
+      h21_flag == "within reason" | 
+        grepl("digit", h21_flag) | 
+        h21_flag %in% c("Theory A", "Theory B") ~ "original 2021 & treated",
+      
+      # 2. THE SUBSTITUTION GROUP: Specific errors fixed with 2024 data
+      h21_flag %in% c("suspected error", "x=0") & 
+        !is.na(height_2024) & 
+        height_2024 >= 140 & height_2024 <= 200 ~ "Substituted from 2024",
+      
+      # 3. THE DROPPED GROUP: Errors with no valid 2024 reference
+      h21_flag %in% c("suspected error", "x=0") & 
+        (is.na(height_2024) | height_2024 < 140 | height_2024 > 200) ~ "NA - No reference",
+      
+      # 4. FALLBACK: Catch anything else as NA to avoid data "leakage"
+      TRUE ~ "NA - Other"
     )
-
-heights_overview <- v3 %>%
-  select(
-    ipnr,
-    height_2021,
-    height_2024,
-    h21_valid,
-    h21_flag,
-    h_impt,
-    h_impt_flag
   )
-View(heights_overview)
 
 
 ##plot 10: height_2021 distribution with two density curves overlay----
@@ -821,25 +792,25 @@ ggplot(v3) +
   geom_density(
     data = subset(v3, h21_flag == "within reason"),
     aes(x = h21_valid, y = after_stat(density) * h21 * binwidth_h, color = "treated 2021 height"), 
-    linewidth = 1.2, linetype = "dashed", adjust = 1.5, na.rm = TRUE
+    linewidth = 1.2, linetype = "dashed", adjust = 1.5, na.rm = TRUE, alpha = 0.8
   ) +
 
   # RED CURVE:Final data with substitutions
   geom_density(
     aes(x = h_impt, y = after_stat(density) * h_final * binwidth_h, color = "treated 2021 height with 2024 substitution"), 
-    linewidth = 0.8, linetype = "solid", adjust = 1.5, na.rm = TRUE
+    linewidth = 0.8, linetype = "solid", adjust = 1.5, na.rm = TRUE, alpha = 0.5
   ) +
   
   scale_color_manual(values = c(
-    "treated 2021 height" = "slategray3", 
-    "treated 2021 height with 2024 substitution" = "steelblue1"
+    "treated 2021 height" = "black", 
+    "treated 2021 height with 2024 substitution" = "orange"
   )) +
   scale_x_continuous(limits = c(100, 220), breaks = seq(100, 220, 10)) + 
   scale_y_continuous(labels = scales::comma) +
   
   labs(
     title = "Impact of 2024 Substitution on 2021 Height Distribution",
-    subtitle = paste0("Total Cleaned: ", scales::comma(h_final), " (Rescued 170 outliers)"),
+    subtitle = paste0("Total Cleaned: ", scales::comma(h_final)),
     x = "Height (cm)", 
     y = "Number of Participants", 
     color = "Density Curve"
@@ -874,7 +845,7 @@ v3_long <- v3 %>%
 vision_friendly_colors <- c(
   "Raw 2021" = "#999999",     # Neutral Gray
   "Treated 2021" = "#E69F00",     # Vivid Orange
-  "Treated 2021 with substitutions" = "#56B4E9"  # Sky Blue
+  "Treated 2021 with substitutions from 2024" = "#56B4E9"  # Sky Blue
 )
 
 # 2. Generate the Boxplot
@@ -909,10 +880,33 @@ ggplot(v3_long, aes(x = Source, y = Height, fill = Source)) +
 quantile(v3$h21_valid, probs = c(0.025, 0.975), na.rm = TRUE)
 quantile(v3$h_impt, probs = c(0.025, 0.975), na.rm = TRUE)
 sum(!is.na(v3$h_impt))
+h21_valid_sd <- sd(v3$h21_valid, na.rm = TRUE)
+h21_valid_sd
+h_impt_sd <- sd(v3$h_impt, na.rm=TRUE)
+h_impt_sd
+
 v3 %>%
-  count(h_impt_flag) #substituted from 2024 = 10550
+  count(h_impt_flag) #substituted from 2024 = 37
 
-
+# heights_overview <- v3 %>%
+#   select(ipnr, height_2021, height_2024, h21_valid, h21_flag, h_impt_flag)
+# 
+# h21_valid_check <- heights_overview %>%
+#   filter(h21_flag %in% c("7-digit", "6-digit", "5-digit", "4-digit",
+#                          "Theory A",
+#                          "Theory B",
+#                          "suspected error",
+#                          "x=0")) %>%
+#   
+#   # 2. Select the columns for your overview
+#   select(height_2021, height_2024, h21_valid, h21_flag, h_impt_flag ) %>%
+#   
+#   # 3. Add a difference check to see how far off the raw data is from 2024
+#   mutate(gap_to_h24 = abs(h21_valid - height_2024)) %>%
+#   
+#   # 4. Sort by flag so you can review them in groups
+#   arrange(h21_flag)
+# View(h21_valid_check)
 
 
 
@@ -927,15 +921,9 @@ v3 %>%
 #SMD ANALYSIS----
 v3_long <- v3 %>%
   select(
-    w21_hes,
-    w21_plaus,
-    w24_hes,
-    w24_plaus,
-    h21_valid,
-    h_impt,
-    weight_2021,
-    weight_2024,
-    height_2021
+    w21_hes, w21_plaus, w24_hes, w24_plaus,
+    h21_valid, h_impt, 
+    weight_2021, weight_2024, height_2021
   ) %>%
   pivot_longer(
     cols = everything(),
@@ -943,83 +931,105 @@ v3_long <- v3 %>%
     values_to = "Value"
   ) %>%
   mutate(
+    # 1. Identify if it's Weight or Height
     Measure = if_else(grepl("weight|w21|w24", Source), "Weight", "Height"),
+    
+    # 2. Create the Status labels
     Status = case_when(
-      # 1. RAW DATA: Any original column
       grepl("weight_2021|weight_2024|height_2021", Source) ~ "Original",
-      # 2. HES logic for weight
       grepl("hes", Source) ~ "HES",
-      
-      # 3. HEIGHT SPECIFIC: The version with the 10,550 substitutions
       Source == "h_impt" ~ "Substituted",
-
-      # 4. WEIGHT SPECIFIC: The weight version using plausibility intervals
       grepl("plaus|valid", Source) ~ "Plausibility",
-      
-      # Fallback just in case
       TRUE ~ "Other"
+    ),
+    # 3. FORCE BASELINE: Order levels so 'Original' is always Group 1 (Reference)
+    Status = factor(Status, levels = c("Original", "HES", "Plausibility", "Substituted"))
   )
-)
 View(v3_long)
 
 library(dplyr)
 library(tidyr)
 library(smd)
 
-w21 <- v3_long %>% filter(Source %in% c("w21_hes", "w21_plaus"))
-w24 <- v3_long %>% filter(Source %in% c("w24_hes", "w24_plaus"))
-h <- v3_long %>% filter(Source %in% c("h21_valid", "h_impt"))
+##treated VS original----
+# 1. Comparison for Weight 2021 (HES vs Original)
+w21_hesComp <- v3_long %>% 
+  filter(Source %in% c("weight_2021", "w21_hes")) %>% 
+  droplevels() # This removes the 'Plausibility' and 'Substituted' labels
+SMD_w21_hes <- smd(w21_hesComp$Value, w21_hesComp$Status, na.rm = TRUE)
 
-##between treated groups ----
-SMD_w21 <- smd(w21$Value, w21$Status, na.rm = TRUE)
-SMD_w24 <- smd(w24$Value, w24$Status, na.rm = TRUE)
-SMD_h <- smd(h$Value, h$Status, na.rm = TRUE)
+# 2. Comparison for Weight 2021 (Plausibility vs Original)
+w21_plausComp <- v3_long %>% 
+  filter(Source %in% c("weight_2021", "w21_plaus")) %>% 
+  droplevels()
+SMD_w21_plaus <- smd(w21_plausComp$Value, w21_plausComp$Status, na.rm = TRUE)
 
+#3 Comparison for Weight 2024 (HES vs Original)
+w24_hesComp <- v3_long %>% 
+  filter(Source %in% c("weight_2024", "w24_hes")) %>% 
+  droplevels() # This removes the 'Plausibility' and 'Substituted' labels
+SMD_w24_hes <- smd(w24_hesComp$Value, w24_hesComp$Status, na.rm = TRUE)
 
-##original VS treated----
-###w21 Original vs HES----
-w21_O_v_hes <- v3_long %>% filter(Source %in% c("weight_2021", "w21_hes"))
-SMD_w21_OvH <- smd(w21_O_v_hes$Value, w21_O_v_hes$Status, na.rm = TRUE)
+# 4 Comparison for Weight 2024 (Plausibility vs Original)
+w24_plausComp <- v3_long %>% 
+  filter(Source %in% c("weight_2024", "w24_plaus")) %>% 
+  droplevels()
+SMD_w21_plaus <- smd(w24_plausComp$Value, w24_plausComp$Status, na.rm = TRUE)
 
-###w21 original vs Plausibility----
-w21_O_v_plaus <- v3_long %>% filter(Source %in% c("weight_2021", "w21_plaus"))
-SMD_w21_OvP <- smd(w21_O_v_plaus$Value, w21_O_v_plaus$Status, na.rm = TRUE)
+# 5. Comparison for Height 2021 (Substituted vs Original)
+h_imptComp <- v3_long %>% 
+  filter(Source %in% c("height_2021", "h_impt")) %>% 
+  droplevels()
+SMD_h_impt <- smd(h_imptComp$Value, h_imptComp$Status, na.rm = TRUE)
 
-### w24 original vs HES----
-w24_O_v_hes <- v3_long %>% filter(Source %in% c("weight_2024", "w24_hes"))
-SMD_w24_OvH <- smd(w24_O_v_hes$Value, w24_O_v_hes$Status, na.rm = TRUE)
-
-### w24 original vs Plausibility----
-w24_O_v_plaus <- v3_long %>% filter(Source %in% c("weight_2024", "w24_plaus"))
-SMD_w24_OvP <- smd(w24_O_v_plaus$Value, w24_O_v_plaus$Status, na.rm = TRUE)
-
-### h21 original vs treated (BIV) ----
-h_O_v_treated <- v3_long %>% filter(Source %in% c("height_2021", "h21_valid"))
-SMD_h_OvT <- smd(h_O_v_treated$Value, h_O_v_treated$Status, na.rm = TRUE)
-
-### h21 original vs treated + substitution (impt) ----
-h_O_v_impt <- v3_long %>% filter(Source %in% c("height_2021", "h_impt"))
-SMD_h_OvI <- smd(h_O_v_impt$Value, h_O_v_impt$Status, na.rm = TRUE)
+#6 Comparison for Height 2021 (treated vs Original)
+h_validComp <- v3_long %>% 
+  filter(Source %in% c("height_2021", "h21_valid")) %>% 
+  droplevels()
+SMD_h_impt <- smd(h_validComp$Value, h_validComp$Status, na.rm = TRUE)
 
 
 ## Define the pairs for comparison----
 comparisons <- list(
-  w21_O_v_hes    = c("weight_2021", "w21_hes"),
-  w21_O_v_plaus  = c("weight_2021", "w21_plaus"),
-  w24_O_v_hes    = c("weight_2024", "w24_hes"),
-  w24_O_v_plaus  = c("weight_2024", "w24_plaus"),
-  h_O_v_treated = c("height_2021", "h21_valid"),
-  h_O_v_impt   = c("height_2021", "h_impt")
+  w21_hes_v_O    = c("weight_2021", "w21_hes"),
+  w21_plaus_v_O  = c("weight_2021", "w21_plaus"),
+  w24_hes_v_O    = c("weight_2024", "w24_hes"),
+  w24_plaus_v_O  = c("weight_2024", "w24_plaus"),
+  h_valid_v_O = c("height_2021", "h21_valid"),
+  h_impt_v_O   = c("height_2021", "h_impt")
 )
 
 ## SMD for each pair----
 smd_results <- lapply(comparisons, function(pair) {
-  df_sub <- v3_long %>% filter(Source %in% pair)
+  df_sub <- v3_long %>% filter(Source %in% pair) %>% droplevels()
   result <- smd(df_sub$Value, df_sub$Status, na.rm = TRUE)
   return(result$estimate)
 })
 unlist(smd_results)
 
+##among treated ----
+comparisons_among_treated <- list(
+  w21_plaus_v_hes = c("w21_hes", "w21_plaus"),
+  w24_plaus_v_hes = c("w24_hes", "w24_plaus"),
+  h_impt_v_valid  = c("h21_valid", "h_impt")
+)
+
+# Run all "Among Treated" comparisons at once
+smd_among_results <- lapply(comparisons_among_treated, function(pair) {
+  # 1. Filter and Drop unused levels to fix the "NA" error
+  df_sub <- v3_long %>% 
+    filter(Source %in% pair) %>% 
+    droplevels() 
+  
+  # 2. Run SMD (R uses Factor Ranks to pick Baseline)
+  res <- smd(df_sub$Value, df_sub$Status, na.rm = TRUE)
+  
+  # 3. Return the estimate
+  return(res$estimate)
+})
+
+# Display final numeric estimates
+unlist(smd_among_results)
 
 
 
@@ -1063,6 +1073,8 @@ v3 <- v3 %>%
                 .names = "{.col}_label"))
 
 summary(v3$BMI_24)
+sd(v3$BMI_21, na.rm = TRUE)
+sd(v3$BMI_24, na.rm = TRUE)
 
 ##plot 12: scatter plot----
 library(ggplot2)
@@ -1072,20 +1084,18 @@ ggplot(v3, aes(x = BMI_21, y = BMI_24)) +
   geom_point(alpha = 0.1, color = "midnightblue") +
   
   # Add the 'No Change' reference line
-  geom_abline(intercept = 0, slope = 1, color = "orange", linetype = "dashed", size = 1) +
+  geom_abline(intercept = 0, slope = 1, color = "orange", linetype = "dashed", linewidth = 1) +
   
   # Focus on the realistic BMI range (15 to 50)
-  coord_cartesian(xlim = c(15, 50), ylim = c(15, 50)) +
+  coord_cartesian(xlim = c(10, 70), ylim = c(10, 70)) +
   
   labs(
     title = "BMI Trajectory: 2021 and 2024",
-    subtitle = "Points above the red line increased BMI; points below decreased.",
-    x = "BMI in 2021 (Rescued/Substituted)",
-    y = "BMI in 2024 (Rescued/Substituted)"
+    subtitle = paste0("Plausibility interval for weight; Treated and substituted data for height\n"), 
+    x = "BMI in 2021",
+    y = "BMI in 2024"
   ) +
   theme_minimal()
-
-library(ggplot2)
 
 ###BMI density trajectory
 # ggplot(v3, aes(x = BMI_21, y = BMI_24)) +
@@ -1125,7 +1135,7 @@ bmi_overlay_data <- v3 %>%
 ggplot(bmi_overlay_data, aes(x = BMI, fill = Year)) +
   geom_density(alpha = 0.4) +
   scale_fill_manual(values = c("2021" = "steelblue1", "2024" = "grey2")) +
-  coord_cartesian(xlim = c(15, 70)) + # Focused range for clinical relevance
+  coord_cartesian(xlim = c(10, 70)) + # Focused range for clinical relevance
   labs(
     title = "Population BMI Shift: 2021 vs 2024",
     x = "Body Mass Index (BMI)",
@@ -1133,11 +1143,6 @@ ggplot(bmi_overlay_data, aes(x = BMI, fill = Year)) +
   ) +
   theme_minimal()
 
-##summary statistics----
-quantile(v3$BMI_21, probs = c(0.025, 0.975), na.rm = TRUE)
-quantile(v3$BMI_24, probs = c(0.025, 0.975), na.rm = TRUE)
-sd(v3$BMI_21, na.rm = TRUE)
-sd(v3$BMI_24, na.rm = TRUE)
 
 
 
@@ -1151,14 +1156,120 @@ sd(v3$BMI_24, na.rm = TRUE)
 
 
 
+#H1: LS & BMI global----
+# 1. Summary Table of Life Satisfaction by BMI Category
+# Check the association using your professional labels
+h1_results <- v3 %>%
+  filter(!is.na(BMI_21_label), !is.na(LS_2021)) %>%
+  group_by(BMI_21_label) %>%
+  summarise(
+    n = n(),
+    mean_LS21 = mean(LS_2021, na.rm = TRUE),
+    sd_LS21 = sd(LS_2021, na.rm = TRUE)
+  ) %>%
+  # Ensure the categories are in the right order for the table
+  mutate(BMI_21_label = factor(BMI_21_label, 
+                               levels = c("Underweight", "Healthy", "Overweight", 
+                                          "Obese I", "Obese II", "Obese III"))) %>%
+  arrange(BMI_21_label)
+
+print(h1_results)
+
+##plot 14: scatterplot LS21 & BMI----
+library(ggplot2)
+
+v3 %>%
+  # # Apply your specific H1 exclusion criteria
+  # filter(age_2021 >= 25) %>%
+  # Remove NAs for the specific variables being plotted
+  filter(!is.na(BMI_21), !is.na(LS_2021)) %>%
+  # 
+  ggplot(aes(x = BMI_21, y = LS_2021)) +
+  # Jitter to show the density of your mature nurse population
+  geom_jitter(alpha = 0.05, color = "midnightblue", width = 0.2, height = 0.2) +
+  
+  # The "H1 Line": Linear association for age 25+
+  geom_smooth(method = "lm", color = "firebrick", linewidth = 1.2) +
+  
+  # Standardize the view to the 15-50 BMI range you cleaned
+  coord_cartesian(xlim = c(10, 70)) +
+  
+  labs(
+    title = "Hypothesis 1: BMI & Life Satisfaction (Full Cohort)",
+    subtitle = paste0("N = ", sum(!is.na(v3$age_2021_imputed)), 
+                      " | Substituted height & plausibility weight used\n",
+                      "Red line indicates the linear association for all ages."),
+    x = "BMI in 2021",
+    y = "Life Satisfaction in 2021"
+  ) +
+  theme_minimal()
+
+##statistics ----
+###linear regression, 25+----
+h1_model <- lm(LS_2021 ~ BMI_21, data = v3 %>% filter(age_2021 >= 25))
+stargazer(h1_model,
+          type = "text",
+          title = "Table 2: Linear Regression of BMI on Life Satisfaction (Ages 25+)",
+          column.labels = c("Life Satisfaction (2021)"),
+          covariate.labels = c("BMI (2021)"),
+          omit.stat = c("f", "ser"), # Clean up the bottom of the table
+          digits = 3)
+
+# library(sjPlot)
+# 
+# # 1. Run your H1 Model
+# h1_model <- lm(LS_2021 ~ BMI_21, data = v3 %>% filter(age_2021 >= 25))
+# 
+# # 2. Create the HTML table for the Viewer Pane
+# tab_model(h1_model, 
+#           title = "Table 2: Association Between BMI and Life Satisfaction (Ages 25+)",
+#           pred.labels = c("(Intercept)", "BMI (2021)"),
+#           dv.labels = "Life Satisfaction Score",
+#           string.p = "p-value",
+#           digits = 3)
+# library(stargazer)
+
+###linear regression, full cohort----
+h1_model_full <- lm(LS_2021 ~ BMI_21, data = v3)
+stargazer(h1_model_full,
+          type = "text",
+          title = "Table 2: Linear Regression of BMI on Life Satisfaction (full cohort)",
+          column.labels = c("Life Satisfaction (2021)"),
+          covariate.labels = c("BMI (2021)"),
+          omit.stat = c("f", "ser"), # Clean up the bottom of the table
+          digits = 3)
 
 
-#LS & BMI----
+# 
 
 
 
 
 
+
+
+##plot 15: scatterplot w curve ----
+v3 %>%
+  # Apply filters BEFORE ggplot
+  # filter(age_2021 >= 25) %>%
+  filter(!is.na(BMI_21), !is.na(LS_2021)) %>%
+  
+  ggplot(aes(x = BMI_21, y = LS_2021)) +
+  # Midnight blue points as requested
+  geom_jitter(alpha = 0.05, color = "midnightblue", width = 0.2, height = 0.2) +
+  
+  # The loess line shows the "bend" at the low end
+  geom_smooth(method = "loess", color = "steelblue1", linewidth = 1.2) + 
+  
+  # Standardize the view to see the full cleaned range
+  coord_cartesian(xlim = c(10, 70)) +
+  
+  labs(
+    title = "Hypothesis 1: Curvilinear Relationship (Full Cohort)",
+    x = "BMI in 2021",
+    y = "Life Satisfaction in 2021"
+  ) +
+  theme_minimal()
 
 
 
