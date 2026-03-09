@@ -1,7 +1,7 @@
 #READY TO USE V3 KEEP UPDATING----
 library(dplyr)
 
-v3 <- read.csv("L:/Auditdata/Students/Lexi/⭐⭐⭐Data_Lexi_v3⭐⭐⭐.csv")
+v3 <- read.csv("/Users/siruizhang/Thesis/v3.csv")
 View(v3)
 
 
@@ -323,7 +323,7 @@ ggplot(v3, aes(x=w24_hes_m)) +
 ###plaus weight interval----
 weights_overview <- v3 %>%
   select(
-    ipnr,
+    #ipnr,
     age_2021,
     sex_valid,
     weight_2021,
@@ -694,7 +694,7 @@ valid_height_logic <- function(h) {
     h > 18 & h <100  ~ h+100,
     
     #within reason
-    h >=140  & h <=200  ~ h,
+    h >=140  & h <=210  ~ h,
     
     #suspected error
     h >=100  & h <140  ~ h,
@@ -718,7 +718,7 @@ v3 <- v3 %>%
       height_2021 >= 1000 ~ "4-digit",
       
       height_2021 > 200 & height_2021 < 1000 ~ "suspected error",
-      height_2021 >=140 & height_2021 <=200 ~ "within reason",
+      height_2021 >=140 & height_2021 <=210 ~ "within reason",
       height_2021 >=100 & height_2021 < 140 ~ "suspected error",
       height_2021 >10 & height_2021 <= 18 ~ "Theory A",
       height_2021 >=1 & height_2021 <=10 ~ "suspected error",
@@ -731,46 +731,52 @@ v3 <- v3 %>%
 View(v3)
 
 sum(!is.na(v3$height_2021))
-sum(v3$height_2021>=140 & v3$height_2021<=200, na.rm=TRUE)
+sum(v3$height_2021>=140 & v3$height_2021<=210, na.rm=TRUE)
 
 #sanity check
 #sum(v3$h21_flag != "within reason" & v3$h21_flag != "NA", na.rm = TRUE)
 
 v3 <- v3 %>%
-  mutate(
-    h_impt = case_when(
-      # If "within reason," containining the word "digit," and "Theory" to cover the digit-fixes, keep the math-cleaned 2021 height
-      h21_flag == "within reason" | 
-        grepl("digit", h21_flag) | 
-        h21_flag %in% c("Theory A", "Theory B") ~ h21_valid,
-
-      # If NOT "within reason", substitute ONLY if 2024 is valid and in range
-      h21_flag %in% c("suspected error", "x=0") & 
-        !is.na(height_2024) & 
-        height_2024 >= 140 & height_2024 <= 200 ~height_2024,
-        TRUE ~ NA_real_
-    )
-  )
+  mutate(h_impt = case_when(
+    # 1. PRIMARY FIX: If Male, take the 2024 height directly
+    sex_valid == "Male" & !is.na(height_2024) & height_2024 >= 140 & height_2024 <= 210 ~ height_2024,
+    
+    # 2. FEMALES: Keep valid 2021 height if it exists
+    sex_valid == "Female" & h21_flag == "within reason" ~ h21_valid,
+    
+    # 3. FEMALES: Substitute from 2024 if 2021 is missing or an error
+    sex_valid == "Female" & (is.na(height_2021) | h21_flag %in% c("x=0", "suspected error")) & 
+      !is.na(height_2024) ~ height_2024,
+    
+    # 4. FEMALES: Keep other treated height theories
+    h21_flag %in% c("Theory A", "Theory B") | grepl("digit", h21_flag) ~ h21_valid,
+    
+    TRUE ~ NA_real_
+  ))
 
 
 v3 <- v3 %>%
   mutate(
     h_impt_flag = case_when(
-      # 1. THE 2021 GROUP: Includes "within reason", math rescues (digit-fixes), and Theories
-      h21_flag == "within reason" | 
-        grepl("digit", h21_flag) | 
-        h21_flag %in% c("Theory A", "Theory B") ~ "original 2021 & treated",
+      # 1. MALES: New category for the recovered male cohort
+      sex_valid == "Male" & !is.na(height_2024) & 
+        height_2024 >= 140 & height_2024 <= 210 ~ "substituted, male",
       
-      # 2. THE SUBSTITUTION GROUP: Specific errors fixed with 2024 data
-      h21_flag %in% c("suspected error", "x=0") & 
+      # 2. THE 2021 GROUP (Females): Original and math-rescued data
+      sex_valid == "Female" & (h21_flag == "within reason" | 
+                                 grepl("digit", h21_flag) | 
+                                 h21_flag %in% c("Theory A", "Theory B")) ~ "Original 2021 & Treated",
+      
+      # 3. THE SUBSTITUTION GROUP (Females): Fixed with 2024 data
+      sex_valid == "Female" & h21_flag %in% c("suspected error", "x=0") & 
         !is.na(height_2024) & 
-        height_2024 >= 140 & height_2024 <= 200 ~ "Substituted from 2024",
+        height_2024 >= 140 & height_2024 <= 210 ~ "Substituted (Female/2024)",
       
-      # 3. THE DROPPED GROUP: Errors with no valid 2024 reference
-      h21_flag %in% c("suspected error", "x=0") & 
-        (is.na(height_2024) | height_2024 < 140 | height_2024 > 200) ~ "NA - No reference",
+      # 4. THE DROPPED GROUP: No valid 2024 reference available
+      (h21_flag %in% c("suspected error", "x=0") | is.na(height_2021)) & 
+        (is.na(height_2024) | height_2024 < 140 | height_2024 > 210) ~ "NA - No reference",
       
-      # 4. FALLBACK: Catch anything else as NA to avoid data "leakage"
+      # 5. FALLBACK
       TRUE ~ "NA - Other"
     )
   )
@@ -785,31 +791,32 @@ ggplot(v3) +
   geom_histogram(
     aes(x = height_2021), 
     binwidth = binwidth_h, 
-    fill = "antiquewhite", color = "white", alpha = 0.8
+    fill = "skyblue", color = "white", alpha = 0.8
   ) +
   
   # BLUE CURVE: treated data
   geom_density(
     data = subset(v3, h21_flag == "within reason"),
-    aes(x = h21_valid, y = after_stat(density) * h21 * binwidth_h, color = "treated 2021 height"), 
+    aes(x = h21_valid, y = after_stat(density) * h21 * binwidth_h, color = "2021 height treated"), 
     linewidth = 1.2, linetype = "dashed", adjust = 1.5, na.rm = TRUE, alpha = 0.8
   ) +
 
   # RED CURVE:Final data with substitutions
   geom_density(
-    aes(x = h_impt, y = after_stat(density) * h_final * binwidth_h, color = "treated 2021 height with 2024 substitution"), 
+    data = subset(v3, h21_flag=="within reason" | "substituted, male")
+    aes(x = h_impt, y = after_stat(density) * h_final * binwidth_h, color = "2021 height treated and substituted"), 
     linewidth = 0.8, linetype = "solid", adjust = 1.5, na.rm = TRUE, alpha = 0.5
   ) +
   
   scale_color_manual(values = c(
-    "treated 2021 height" = "black", 
-    "treated 2021 height with 2024 substitution" = "orange"
+    "2021 height treated" = "black", 
+    "2021 height treated and substituted" = "orange"
   )) +
   scale_x_continuous(limits = c(100, 220), breaks = seq(100, 220, 10)) + 
   scale_y_continuous(labels = scales::comma) +
   
   labs(
-    title = "Impact of 2024 Substitution on 2021 Height Distribution",
+    title = "Original 2021 height distribution, with density overlay of treated and substituted data",
     subtitle = paste0("Total Cleaned: ", scales::comma(h_final)),
     x = "Height (cm)", 
     y = "Number of Participants", 
@@ -1270,6 +1277,45 @@ v3 %>%
     y = "Life Satisfaction in 2021"
   ) +
   theme_minimal()
+
+
+
+#DESCRIPTIVE STAT---
+library(table1)
+library(dplyr)
+
+# 2. Prepare the analytic sample (N = 32,377)
+# Using your v3 variables and filtering for complete cases
+table1_data <- v3 %>%
+  filter(age_2024_imputed >= 25) %>%
+  select(
+    age = age_2024_imputed,
+    height = h_impt,
+    weight = w21_plaus,
+    bmi = BMI_24,
+    ls = LS_2024,
+    bmi_cat = BMI_24_label
+  ) %>%
+  na.omit()
+
+# 3. Add professional labels (This makes the table look like a journal article)
+label(table1_data$age)      <- "Age (Years)"
+label(table1_data$height)   <- "Height (cm)"
+label(table1_data$weight)   <- "Weight (kg)"
+label(table1_data$bmi)      <- "Body Mass Index (kg/m²)"
+label(table1_data$ls)       <- "Life Satisfaction (0-10)"
+label(table1_data$bmi_cat)  <- "BMI Category (WHO)"
+
+# 4. Generate the "Xiaohongshu-style" Three-Line Table
+# This creates a professional HTML table you can copy directly to PPT
+table1(~ age + height + weight + bmi + ls + bmi_cat, 
+       data = table1_data,
+       caption = "Table 1: Descriptive Statistics of the 2021 Danish Nurse Cohort Registry")
+
+
+
+
+
 
 
 
