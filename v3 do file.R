@@ -226,8 +226,8 @@ library(scales)
 library(dplyr)
 
 binwidth <- 2
-n21 <- length(na.omit(v3$w21_hes)) #n = 29465
-n24 <- length(na.omit(v3$w24_hes_f))
+n21 <- length(na.omit(v3$w21_hes))
+n24Female <- length(na.omit(v3$w24_hes_f))
 n24Male <- length(na.omit(v3$w24_hes_m))
 
 ###plot 1: 2021 valid weight (females only) ----
@@ -271,7 +271,7 @@ ggplot(v3, aes(x=w24_hes_f)) +
   ) +
   # Density Curve - Simplified Scaling
   geom_density(
-    aes(y = after_stat(density) * n24 * 2, color = "2024 valid females"), 
+    aes(y = after_stat(density) * n24Female * 2, color = "2024 valid females"), 
     linewidth = 1, 
     adjust=1.5,
     na.rm = TRUE
@@ -478,8 +478,6 @@ w24_plaus_sd <- sd(v3$w24_plaus, na.rm = TRUE)
 sv <- function(x) unclass(summary(x))  # strip "table" class/attributes
 w_hes <- data.frame(
   All_2021    = sv(v3$w21_hes),
-  Female_2021 = sv(v3$w21_hes[v3$sex_valid=="Female"]),
-  Male_2021   = sv(v3$w21_hes[v3$sex_valid == "Male"]),
   All_2024 = sv(v3$w24_hes),
   Female_2024 = sv(v3$w24_hes_f),
   Male_2024   = sv(v3$w24_hes_m),
@@ -487,7 +485,7 @@ w_hes <- data.frame(
 )
 
 library(knitr)
-kable(w_hes, digits = 2, caption = "Summary statistics of valid weight by sex and year")
+kable(w_hes, digits = 2, caption = "Summary statistics of valid weight by sex and year, HES interval")
 
 ###plausibility interval----
 sv <- function(x) unclass(summary(x)) 
@@ -539,7 +537,7 @@ ggplot(v3) +
   geom_histogram(
     aes(x = weight_2021), 
     binwidth = 2, 
-    fill = "grey90",    # Neutral color so the curves pop
+    fill = "antiquewhite",    # Neutral color so the curves pop
     color = "white", 
     alpha = 0.8
   ) +
@@ -562,14 +560,13 @@ ggplot(v3) +
   scale_y_continuous(labels = comma) +
   labs(
     title = "Impact of Filtering Logic on 2021 Weight Data",
-    subtitle = "Grey bars = Raw Data",
     x = "Weight (kg)", 
     y = "Number of Participants", 
     color = "Density Curve"
   ) +
   theme_minimal()
 
-###plot 8: 2024 HES and plausible intervals on raw 2021 weight data----
+###plot 8: 2024 HES and plausible intervals on raw 2024 weight data----
 sum(!is.na(v3$w21_plaus) & !is.na(v3$w24_plaus)) #n = 17419
 
 n24_plaus <- length(na.omit(v3$w24_plaus))
@@ -580,7 +577,7 @@ ggplot(v3) +
   geom_histogram(
     aes(x = weight_2024), 
     binwidth = 2, 
-    fill = "grey90",    # Neutral color so the curves pop
+    fill = "antiquewhite",    # Neutral color so the curves pop
     color = "white", 
     alpha = 0.8
   ) +
@@ -603,7 +600,6 @@ ggplot(v3) +
   scale_y_continuous(labels = comma) +
   labs(
     title = "Impact of Filtering Logic on 2024 Weight Data",
-    subtitle = "Grey bars = Raw Data",
     x = "Weight (kg)", 
     y = "Number of Participants", 
     color = "Density Curve"
@@ -706,12 +702,22 @@ valid_height_logic <- function(h) {
   )
 }
 
+# male_overview <- v3 %>%
+#   select(
+#     sex_valid,
+#     height_2024,
+#     weight_2024,
+#     w24_hes,
+#     w24_plaus
+#   )
+# View(male_overview)
+
+
 ##valid 21 funnel ----
 v3 <- v3 %>%
   mutate(
-    h21_valid = sapply(height_2021, valid_height_logic),
-
-    h21_flag = case_when(
+    h21_treated = sapply(height_2021, valid_height_logic),
+    h_flag = case_when(
       height_2021 >= 1000000 ~ "7-digit",
       height_2021 >= 100000 ~ "6-digit",
       height_2021 >= 10000 ~ "5-digit",
@@ -726,30 +732,29 @@ v3 <- v3 %>%
       height_2021 == 0 ~ "x=0",
       TRUE ~"NA"
     ),
-    h21_valid = round(h21_valid)
+    h21_treated = round(h21_treated)
   )
 View(v3)
 
-sum(!is.na(v3$height_2021))
-sum(v3$height_2021>=140 & v3$height_2021<=210, na.rm=TRUE)
+# sum(!is.na(v3$height_2021))
+# sum(v3$height_2021>=140 & v3$height_2021<=210, na.rm=TRUE)
 
 #sanity check
 #sum(v3$h21_flag != "within reason" & v3$h21_flag != "NA", na.rm = TRUE)
 
 v3 <- v3 %>%
   mutate(h_impt = case_when(
-    # 1. PRIMARY FIX: If Male, take the 2024 height directly
     sex_valid == "Male" & !is.na(height_2024) & height_2024 >= 140 & height_2024 <= 210 ~ height_2024,
     
     # 2. FEMALES: Keep valid 2021 height if it exists
-    sex_valid == "Female" & h21_flag == "within reason" ~ h21_valid,
+    sex_valid == "Female" & h_flag == "within reason" ~ h21_treated,
     
     # 3. FEMALES: Substitute from 2024 if 2021 is missing or an error
-    sex_valid == "Female" & (is.na(height_2021) | h21_flag %in% c("x=0", "suspected error")) & 
-      !is.na(height_2024) ~ height_2024,
+    sex_valid == "Female" & (is.na(height_2021) | h_flag %in% c("x=0", "suspected error")) & 
+      !is.na(height_2024) & height_2024 >=140 & height_2024 <= 210 ~ height_2024,
     
     # 4. FEMALES: Keep other treated height theories
-    h21_flag %in% c("Theory A", "Theory B") | grepl("digit", h21_flag) ~ h21_valid,
+    h_flag %in% c("Theory A", "Theory B") | grepl("digit", h_flag) ~ h21_treated,
     
     TRUE ~ NA_real_
   ))
@@ -760,59 +765,63 @@ v3 <- v3 %>%
     h_impt_flag = case_when(
       # 1. MALES: New category for the recovered male cohort
       sex_valid == "Male" & !is.na(height_2024) & 
-        height_2024 >= 140 & height_2024 <= 210 ~ "substituted, male",
+        height_2024 >= 140 & height_2024 <= 210 ~ "Male 2024",
       
       # 2. THE 2021 GROUP (Females): Original and math-rescued data
-      sex_valid == "Female" & (h21_flag == "within reason" | 
-                                 grepl("digit", h21_flag) | 
-                                 h21_flag %in% c("Theory A", "Theory B")) ~ "Original 2021 & Treated",
+      sex_valid == "Female" & 
+        (h_flag == "within reason" | grepl("digit", h_flag) | h_flag %in% c("Theory A", "Theory B")) &
+        h21_treated >= 140 & h21_treated <= 210 ~ "Original and Treated",
       
       # 3. THE SUBSTITUTION GROUP (Females): Fixed with 2024 data
-      sex_valid == "Female" & h21_flag %in% c("suspected error", "x=0") & 
+      sex_valid == "Female" & h_flag %in% c("suspected error", "x=0", "NA") & 
         !is.na(height_2024) & 
-        height_2024 >= 140 & height_2024 <= 210 ~ "Substituted (Female/2024)",
+        height_2024 >= 140 & height_2024 <= 210 ~ "Substituted",
       
       # 4. THE DROPPED GROUP: No valid 2024 reference available
-      (h21_flag %in% c("suspected error", "x=0") | is.na(height_2021)) & 
+      (h_flag %in% c("suspected error", "x=0","NA") | is.na(height_2021)) & 
         (is.na(height_2024) | height_2024 < 140 | height_2024 > 210) ~ "NA - No reference",
       
       # 5. FALLBACK
       TRUE ~ "NA - Other"
     )
   )
+View(v3)
 
 
-##plot 10: height_2021 distribution with two density curves overlay----
+h_f_full <- sum(v3$h_impt_flag == "Original and Treated", na.rm=TRUE) + sum(v3$h_impt_flag=="Substituted", na.rm = TRUE)
+h21_f_T <- sum(v3$h_impt_flag=="Original and Treated")
+h24_m <- sum(v3$h_impt_flag=="Male 2024")
+h_final <- sum(!v3$h_impt_flag %in% c("NA - Other", "NA - No reference"))
+
+##plot 10: treated height 2021 distribution with two density curves overlay----
 binwidth_h <- 2
-h21 <- sum(v3$h21_flag == "within reason", na.rm = TRUE)
-h_final <- sum(!is.na(v3$h_impt))
 
 ggplot(v3) +
   geom_histogram(
     aes(x = height_2021), 
     binwidth = binwidth_h, 
-    fill = "skyblue", color = "white", alpha = 0.8
+    fill = "antiquewhite", color = "white", alpha = 0.8
   ) +
   
-  # BLUE CURVE: treated data
+  # BLUE CURVE: treated & substituted data, females only
   geom_density(
-    data = subset(v3, h21_flag == "within reason"),
-    aes(x = h21_valid, y = after_stat(density) * h21 * binwidth_h, color = "2021 height treated"), 
+    data = subset(v3, h_impt_flag %in% c("Substituted", "Original and Treated")),
+    aes(x = h_impt, y = after_stat(density) * h_f_full * binwidth_h, color = "2021 height treated and substituted, females"), 
     linewidth = 1.2, linetype = "dashed", adjust = 1.5, na.rm = TRUE, alpha = 0.8
   ) +
 
-  # RED CURVE:Final data with substitutions
+  # RED CURVE: final, two genders
   geom_density(
-    data = subset(v3, h21_flag=="within reason" | "substituted, male")
-    aes(x = h_impt, y = after_stat(density) * h_final * binwidth_h, color = "2021 height treated and substituted"), 
+    data = subset(v3, !h_impt_flag %in% c("NA - No reference", "NA - Other" )),
+    aes(x = h_impt, y = after_stat(density) * h_final * binwidth_h, color = "2021 height treated and substituted, total"), 
     linewidth = 0.8, linetype = "solid", adjust = 1.5, na.rm = TRUE, alpha = 0.5
   ) +
   
   scale_color_manual(values = c(
-    "2021 height treated" = "black", 
-    "2021 height treated and substituted" = "orange"
+    "2021 height treated and substituted, females" = "#0082B9", 
+    "2021 height treated and substituted, total" = "#21C1BD"
   )) +
-  scale_x_continuous(limits = c(100, 220), breaks = seq(100, 220, 10)) + 
+  scale_x_continuous(limits = c(130, 220), breaks = seq(130, 220, 10)) + 
   scale_y_continuous(labels = scales::comma) +
   
   labs(
@@ -834,7 +843,7 @@ library(tidyr)
 # Transform wide data to long format
 v3_long <- v3 %>%
   # Select only the columns we want to compare
-  select(height_2021, h21_valid, h_impt) %>%
+  select(height_2021, h21_treated, h_impt) %>%
   pivot_longer(
     cols = everything(), 
     names_to = "Source", 
@@ -843,17 +852,11 @@ v3_long <- v3 %>%
   # Rename the values in 'Source' to match your color vector labels
   mutate(Source = case_when(
     Source == "height_2021" ~ "Raw 2021",
-    Source == "h21_valid" ~ "Treated 2021",
+    Source == "h21_treated" ~ "Treated 2021",
     Source == "h_impt"      ~ "Treated 2021 with substitutions from 2024",
     TRUE                    ~ Source
   ))
 
-
-vision_friendly_colors <- c(
-  "Raw 2021" = "#999999",     # Neutral Gray
-  "Treated 2021" = "#E69F00",     # Vivid Orange
-  "Treated 2021 with substitutions from 2024" = "#56B4E9"  # Sky Blue
-)
 
 # 2. Generate the Boxplot
 ggplot(v3_long, aes(x = Source, y = Height, fill = Source)) +
@@ -865,13 +868,11 @@ ggplot(v3_long, aes(x = Source, y = Height, fill = Source)) +
     breaks = c(1, 10, 140, 168, 200, 1000, 10000, 100000, 1000000),
     labels = scales::comma
   ) +
-  
-  # Apply the vision-friendly manual scale
-  scale_fill_manual(values = vision_friendly_colors) +
-  
+
   # THEME & LABELS
   labs(
-    title = "Comparison of Raw Heights vs. Treated Distribution",
+    title = "Comparison of outliers among different data treatment",
+    subtitle = paste0("Treatment with substitutions includes male participants\n"), 
     x = "Data Source",
     y = "Height (cm, Log Scale)"
   ) +
@@ -884,6 +885,25 @@ ggplot(v3_long, aes(x = Source, y = Height, fill = Source)) +
   )
 
 ##summary statistics----
+###height stratified----
+h_f_sub <- sum(v3$h_impt_flag == "Substituted", na.rm = TRUE)
+
+# 2. Create the table without the divider line to avoid the 'NA'
+h_summary_table <- data.frame(
+  "Data Category" = c("Female: Original & Treated", 
+                      "Female: Substituted from 2024", 
+                      "Male: Recovered 2024", 
+                      "TOTAL ANALYTICAL SAMPLE"),
+  "N" = c(h21_f_T, 
+          h_f_sub, 
+          h24_m, 
+          h_final)
+)
+
+# View it
+print(h_summary_table)
+
+
 quantile(v3$h21_valid, probs = c(0.025, 0.975), na.rm = TRUE)
 quantile(v3$h_impt, probs = c(0.025, 0.975), na.rm = TRUE)
 sum(!is.na(v3$h_impt))
