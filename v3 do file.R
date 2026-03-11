@@ -1460,7 +1460,7 @@ v3$sex_valid <- factor(v3$sex_valid)
 table1_final <- v3 %>%
   # Filter out the NAs for BMI first so the p-values don't get confused
   filter(!is.na(BMI_24_label)) %>% 
-  select(age_2021_imputed, sex_valid, w21_plaus, h_impt, BMI_24_label, LS_2024) %>%
+  select(age_2024_imputed, sex_valid, w24_plaus, h_impt, BMI_24_label, LS_2024) %>%
   tbl_summary(
     by = BMI_24_label,
     # 'categorical' forces both Male/Female to show even if one is low N
