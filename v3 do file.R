@@ -158,11 +158,42 @@ v3 <- v3 %>%
 
 
 #WEIGHT DATA ----
-##HES interval  ----
+# A reusable "Rescue Function" based on your logic
+rescue_weight <- function(w_input, w_anchor) {
+  case_when(
+    # Baseline
+    w_input >= 40 & w_input < 150 ~ w_input,
+    
+    # 5-digit: 98190 -> 98
+    nchar(as.character(floor(w_input))) == 5 ~ w_input %/% 1000,
+    
+    # 4-digit: 7890 -> check front (78) vs back (90) against 2024 anchor
+    nchar(as.character(floor(w_input))) == 4 ~ {
+      front <- w_input %/% 100
+      back  <- w_input %% 100
+      if_else(abs(front - w_anchor) < abs(back - w_anchor), front, back)
+    },
+    
+    # 3-digit > 180: check first two (954 -> 95)
+    w_input > 180 & w_input <= 1000 & 
+      abs((w_input %/% 10) - w_anchor) <= 20 ~ w_input %/% 10,
+    
+    # 3-digit 150-180: check last two (178 -> 78)
+    w_input >= 150 & w_input <= 180 & 
+      abs((w_input %% 100) - w_anchor) <= 20 ~ w_input %% 100,
+    
+    TRUE ~ w_input
+  )
+}
+
+# Apply to BOTH variables in v3
 v3 <- v3 %>%
   mutate(
-    w21_hes = if_else(weight_2021>=48.5 & weight_2021<=86.5, weight_2021, NA_real_)
+    w21_treated = rescue_weight(weight_2021, weight_2024),
+    w21_plaus = if_else(w21_treated >= 40 & w21_treated <=150, w21_treated, NA_real_),
+    w21_hes   = if_else(w21_treated >= 48.5 & w21_treated <= 86.5, w21_treated, NA_real_)
   )
+
 #sanity check, n = 41031
 ##sum(is.na(v3$weight_2021_valid))
 #sanity check, n = 1651
@@ -229,8 +260,9 @@ binwidth <- 2
 n21 <- length(na.omit(v3$w21_hes))
 n24Female <- length(na.omit(v3$w24_hes_f))
 n24Male <- length(na.omit(v3$w24_hes_m))
+n24 <- length(na.omit(v3$w24_hes))
 
-###plot 1: 2021 valid weight (females only) ----
+###plot 1: 2021 weight (females only) ----
 ggplot(v3, aes(x=w21_hes)) +
   # Histogram
   geom_histogram(
@@ -241,7 +273,7 @@ ggplot(v3, aes(x=w21_hes)) +
   ) +
   # Density Curve - Simplified Scaling
   geom_density(
-    aes(y = after_stat(density) * n21 * 2, color = "2021 valid"), 
+    aes(y = after_stat(density) * n21 * 2, color = "2021 weight"), 
     linewidth = 1, 
     adjust=1.5,
     na.rm = TRUE
@@ -251,16 +283,16 @@ ggplot(v3, aes(x=w21_hes)) +
   scale_y_continuous(labels = comma) + 
   scale_color_manual(
     name = "2021 weight Data Source", #title of the legend
-    values = c("2021 valid" = "cyan4")
+    values = c("2021 weight" = "cyan4")
   ) + 
   labs(
-    title = "2021 Weight distribution (females only)",
+    title = "2021 weight, HES interval, females only",
     x = "Weight (kg)",
     y = "Number of Participants"
   ) +
   theme_minimal()
 
-###plot 2: 2024 valid weight females ----
+###plot 2: 2024 females ----
 ggplot(v3, aes(x=w24_hes_f)) +
   # Histogram
   geom_histogram(
@@ -271,7 +303,7 @@ ggplot(v3, aes(x=w24_hes_f)) +
   ) +
   # Density Curve - Simplified Scaling
   geom_density(
-    aes(y = after_stat(density) * n24Female * 2, color = "2024 valid females"), 
+    aes(y = after_stat(density) * n24Female * 2, color = "2024 weight"), 
     linewidth = 1, 
     adjust=1.5,
     na.rm = TRUE
@@ -280,17 +312,17 @@ ggplot(v3, aes(x=w24_hes_f)) +
   scale_x_continuous(limits = c(40, 95), breaks = seq(40, 90, by=10)) +
   scale_y_continuous(labels = comma) + 
   scale_color_manual(
-    name = "2024 valid female",
-    values = c("2024 valid females" = "cyan4")
+    name = "2024 weight, female",
+    values = c("2024 weight" = "cyan4")
   ) + 
   labs(
-    title = "2024 Female weight distribution",
+    title = "2024 weight, HES interval, female",
     x = "Weight (kg)",
     y = "Number of Participants"
   ) +
   theme_minimal()
 
-###plot 3: 2024 male weight distribution----
+###plot 3: 2024 male----
 ggplot(v3, aes(x=w24_hes_m)) +
   # Histogram
   geom_histogram(
@@ -300,7 +332,65 @@ ggplot(v3, aes(x=w24_hes_m)) +
     alpha = 0.7
   ) +
   geom_density(
-    aes(y = after_stat(density) * n24Male * 2, color = "2024 valid male"), 
+    aes(y = after_stat(density) * n24Male * 2, color = "2024 weight"), 
+    linewidth = 1, 
+    adjust=1.5,
+    na.rm = TRUE
+  ) +
+  scale_x_continuous(limits = c(50, 110), breaks = seq(40, 110, by=10)) +
+  scale_y_continuous(labels = comma) + 
+  scale_color_manual(
+    name = "2024 valid male",
+    values = c("2024 weight" = "purple1")
+  ) + 
+  labs(
+    title = "2024 weight, HES interval, male",
+    x = "Weight (kg)",
+    y = "Number of Participants"
+  ) +
+  theme_minimal()
+
+###plot 4: 2024 total
+ggplot(v3, aes(x=w24_hes)) +
+  # Histogram
+  geom_histogram(
+    binwidth = 2, 
+    fill = "antiquewhite", 
+    color = "white", 
+    alpha = 0.7
+  ) +
+  # Density Curve - Simplified Scaling
+  geom_density(
+    aes(y = after_stat(density) * n24 * 2, color = "2024 weight"), 
+    linewidth = 1, 
+    adjust=1.5,
+    na.rm = TRUE
+  ) +
+  # Manual Axis Limits (Adjust these to fit your data)
+  scale_x_continuous(limits = c(40, 110), breaks = seq(40, 110, by=10)) +
+  scale_y_continuous(labels = comma) + 
+  scale_color_manual(
+    name = "2024 weight",
+    values = c("2024 weight" = "cyan4")
+  ) + 
+  labs(
+    title = "2024 weight, HES interval, full cohort",
+    x = "Weight (kg)",
+    y = "Number of Participants"
+  ) +
+  theme_minimal()
+
+###plot 4: 2024 male----
+ggplot(v3, aes(x=w24_hes)) +
+  # Histogram
+  geom_histogram(
+    binwidth = 2, 
+    fill = "antiquewhite", 
+    color = "white", 
+    alpha = 0.7
+  ) +
+  geom_density(
+    aes(y = after_stat(density) * n24Male * 2, color = "2024 weight"), 
     linewidth = 1, 
     adjust=1.5,
     na.rm = TRUE
@@ -309,10 +399,10 @@ ggplot(v3, aes(x=w24_hes_m)) +
   scale_y_continuous(labels = comma) + 
   scale_color_manual(
     name = "2024 valid male",
-    values = c("2024 valid male" = "purple1")
+    values = c("2024 weight" = "purple1")
   ) + 
   labs(
-    title = "Male 2024 valid weight",
+    title = "2024 weight, HES interval, male",
     x = "Weight (kg)",
     y = "Number of Participants"
   ) +
@@ -327,16 +417,41 @@ weights_overview <- v3 %>%
     age_2021,
     sex_valid,
     weight_2021,
-    weight_2024
+    weight_2024,
+    w21_plaus,
+    w24_plaus
   )
+View(weights_overview)
 
 v3 <- v3 %>%
   mutate(
     w21_plaus = case_when(
       weight_2021>=40 & weight_2021<=192 ~ weight_2021,
-      TRUE ~ NA_real_
-    )
-  )
+      
+      # 2. FIVE-DIGIT: Take first two (98180 -> 98)
+      nchar(as.character(floor(weight_2021))) == 5 ~ weight_2021 %/% 1000,
+      
+      # 3. FOUR-DIGIT: (e.g., 7890 -> 78 or 90). 
+      # Picks the two digits closest to the 2024 anchor.
+      nchar(as.character(floor(weight_2021))) == 4 ~ {
+        front <- weight_2021 %/% 100
+        back  <- weight_2021 %% 100
+        if_else(abs(front - weight_2024) < abs(back - weight_2024), front, back)
+      },
+      
+      # 4. THREE-DIGIT (181-1000): (e.g., 954 -> 95). 
+      # Use first two digits if they match 2024 within +/- 20kg.
+      weight_2021 > 180 & weight_2021 <= 1000 & 
+        abs((weight_2021 %/% 10) - weight_2024) <= 20 ~ weight_2021 %/% 10,
+      
+      # 5. THREE-DIGIT (150-180): (e.g., 178 -> 78). 
+      # Use LAST two digits if they match 2024 within +/- 20kg.
+      weight_2021 >= 150 & weight_2021 <= 180 & 
+        abs((weight_2021 %% 100) - weight_2024) <= 20 ~ weight_2021 %% 100,
+      
+      # 6. DEFAULT: If it doesn't fit a pattern, keep original (will likely be filtered later)
+      TRUE ~ weight_2021
+    ))
 
 v3  <- v3 %>%
   mutate(
@@ -363,13 +478,14 @@ View(v3)
 
 
 
-###plot 4: 2021 plausible weight (females only) ----
+###plot 5: 2021 plausible weight ----
 library(ggplot2)
 library(scales)
 library(dplyr)
 
 binwidth <- 2
 n21_plaus <- length(na.omit(v3$w21_plaus))
+n24_plaus <- length(na.omit(v3$w24_plaus))
 n24_plaus_f <- length(na.omit(v3$w24_plaus_f))
 n24_plaus_m <- length(na.omit(v3$w24_plaus_m))
 
@@ -396,13 +512,13 @@ ggplot(v3, aes(x=w21_plaus)) +
     values = c("2021 plausible" = "cyan4")
   ) + 
   labs(
-    title = "2021 Weight distribution - plausibility approach (females only)",
+    title = "2021 Weight plausibility approach, females only",
     x = "Weight (kg)",
     y = "Number of Participants"
   ) +
   theme_minimal()
 
-###plot 5: 2024 valid weight females ----
+###plot 6: 2024 females ----
 ggplot(v3, aes(x=w24_plaus_f)) +
   # Histogram
   geom_histogram(
@@ -432,7 +548,7 @@ ggplot(v3, aes(x=w24_plaus_f)) +
   ) +
   theme_minimal()
 
-###plot 6: 2024 male weight distribution----
+###plot 7: 2024 male----
 ggplot(v3, aes(x=w24_plaus_m)) +
   # Histogram
   geom_histogram(
@@ -447,7 +563,7 @@ ggplot(v3, aes(x=w24_plaus_m)) +
     adjust=1.5,
     na.rm = TRUE
   ) +
-  scale_x_continuous(limits = c(30, 220), breaks = seq(50, 220, by=20)) +
+  scale_x_continuous(limits = c(30, 220), breaks = seq(30, 220, by=20)) +
   scale_y_continuous(labels = comma) + 
   scale_color_manual(
     name = "2024 male plausible",
@@ -460,10 +576,72 @@ ggplot(v3, aes(x=w24_plaus_m)) +
   ) +
   theme_minimal()
 
+###plot 8: 2024, total
+ggplot(v3, aes(x=w24_plaus)) +
+  # Histogram
+  geom_histogram(
+    binwidth = 2, 
+    fill = "antiquewhite", 
+    color = "white", 
+    alpha = 0.7
+  ) +
+  geom_density(
+    aes(y = after_stat(density) * n24_plaus * 2, color = "2024 plausible"), 
+    linewidth = 1, 
+    adjust=1.5,
+    na.rm = TRUE
+  ) +
+  scale_x_continuous(limits = c(30, 220), breaks = seq(30, 220, by=20)) +
+  scale_y_continuous(labels = comma) + 
+  scale_color_manual(
+    name = "2024 male plausible",
+    values = c("2024 plausible" = "purple1")
+  ) + 
+  labs(
+    title = "2024 Weight plausibility approach, full cohort",
+    x = "Weight (kg)",
+    y = "Number of Participants"
+  ) +
+  theme_minimal()
+
 ##summary statistics ----
+v3 %>% filter(weight_2021 != w21_plaus) %>% nrow()
+
+stmd_h <- function(data, variable, group_var) {
+  # Split data by group
+  g1 <- data[[variable]][data[[group_var]] == unique(data[[group_var]])[1]]
+  g2 <- data[[variable]][data[[group_var]] == unique(data[[group_var]])[2]]
+  
+  # Calculate means and sds
+  m1 <- mean(g1, na.rm = TRUE)
+  m2 <- mean(g2, na.rm = TRUE)
+  s1 <- sd(g1, na.rm = TRUE)
+  s2 <- sd(g2, na.rm = TRUE)
+  n1 <- length(na.omit(g1))
+  n2 <- length(na.omit(g2))
+  
+  # Pooled SD calculation
+  pooled_sd <- sqrt(((n1 - 1) * s1^2 + (n2 - 1) * s2^2) / (n1 + n2 - 2))
+  
+  # Return the SMD
+  return((m1 - m2) / pooled_sd)
+}
+
+###SMD, HES as baseline----
+# Create the comparison frame
+df_weight_compare <- data.frame(
+  weight = c(v3$w21_hes, v3$w21_plaus),
+  group  = c(rep("HES", nrow(v3)), rep("Plausibility", nrow(v3)))
+) %>% filter(!is.na(weight))
+
+# Run the calculation
+weight_smd_result <- stmd_h(df_weight_compare, "weight", "group")
+print(paste("New Weight SMD:", round(weight_smd_result, 4)))
+
 ###HES interval----
 library(dplyr)
 summary(v3$w21_hes)
+summary(v3$w24_hes)
 summary(v3$w24_hes_f)
 summary(v3$w24_hes_m)
 summary(v3$weight_2021)
@@ -506,6 +684,8 @@ quantile(v3$w21_hes, probs = c(0.025, 0.975), na.rm = TRUE)
 
 quantile(v3$w24_hes, probs = c(0.025, 0.975), na.rm = TRUE)
 
+quantile(v3$w24_hes, probs = c(0.025, 0.975), na.rm = TRUE)
+
 quantile(v3$w24_hes_f, probs = c(0.025, 0.975), na.rm = TRUE)
 
 quantile(v3$w24_hes_m, probs = c(0.025, 0.975), na.rm = TRUE)
@@ -523,15 +703,15 @@ quantile(v3$w24_plaus_m, probs = c(0.025, 0.975), na.rm = TRUE)
 
 ###under different intervals----
 #HES interval
-sum(!is.na(v3$w21_hes) & !is.na(v3$w24_hes)) # n = 14747
-sum(!is.na(v3$w21_hes)&!is.na(v3$w24_hes_f)) #n = 14263
+sum(!is.na(v3$w21_hes) & !is.na(v3$w24_hes)) # n = 14759
+sum(!is.na(v3$w21_hes)&!is.na(v3$w24_hes_f)) #n = 14275
 
 #plausibility interval
-sum(!is.na(v3$w21_plaus) & !is.na(v3$w24_plaus)) #n = 17419
-sum(!is.na(v3$w21_plaus) & !is.na(v3$w24_plaus_f)) #n = 17419
+sum(!is.na(v3$w21_plaus) & !is.na(v3$w24_plaus)) #n = 17420
+sum(!is.na(v3$w21_plaus) & !is.na(v3$w24_plaus_f)) #n = 17420
 
 ## two-curve overlay on 2021 data----
-###plot 7: 2021 HES and plausible intervals on raw 2021 weight data----
+###plot 8: 2021 HES and plausible intervals on raw 2021 weight data----
 ggplot(v3) +
   # THE BACKGROUND: Raw 2021 data with no modifiers
   geom_histogram(
@@ -544,7 +724,7 @@ ggplot(v3) +
   
   # CURVE 1: HES Survey Interval (Strict)
   geom_density(
-    aes(x = v3$w21_hes, y = after_stat(density) * n21 * binwidth, color = "HES interval (48.5-86.5)"), 
+    aes(x = w21_hes, y = after_stat(density) * n21 * binwidth, color = "HES interval (48.5-86.5)"), 
     linewidth = 1, adjust = 1.5, na.rm = TRUE
   ) +
   
@@ -566,11 +746,8 @@ ggplot(v3) +
   ) +
   theme_minimal()
 
-###plot 8: 2024 HES and plausible intervals on raw 2024 weight data----
-sum(!is.na(v3$w21_plaus) & !is.na(v3$w24_plaus)) #n = 17419
-
-n24_plaus <- length(na.omit(v3$w24_plaus))
-n24_valid <- length(na.omit(v3$w24_hes))
+###plot 9: 2024 HES and plausible intervals on raw 2024 weight data----
+sum(!is.na(v3$w21_plaus) & !is.na(v3$w24_plaus)) #n = 17420
 
 ggplot(v3) +
   # THE BACKGROUND: Raw 2024 data with no modifiers
@@ -584,7 +761,7 @@ ggplot(v3) +
   
   # CURVE 1: HES Survey Interval (Strict)
   geom_density(
-    aes(x = w24_hes, y = after_stat(density) * n24_valid * binwidth, color = "HES interval (48.5-86.5)"), 
+    aes(x = w24_hes, y = after_stat(density) * n24 * binwidth, color = "HES interval (48.5-86.5)"), 
     linewidth = 1, adjust = 1.5, na.rm = TRUE
   ) +
   
@@ -606,7 +783,7 @@ ggplot(v3) +
   ) +
   theme_minimal()
 
-###plot 9: boxplot for filtering logic----
+###plot 10: boxplot for filtering logic----
 library(ggplot2)
 library(tidyr)
 library(dplyr)
@@ -793,7 +970,7 @@ h21_f_T <- sum(v3$h_impt_flag=="Original and Treated")
 h24_m <- sum(v3$h_impt_flag=="Male 2024")
 h_final <- sum(!v3$h_impt_flag %in% c("NA - Other", "NA - No reference"))
 
-##plot 10: treated height 2021 distribution with two density curves overlay----
+##plot 11: treated height 2021 distribution with two density curves overlay----
 binwidth_h <- 2
 
 ggplot(v3) +
@@ -826,14 +1003,13 @@ ggplot(v3) +
   
   labs(
     title = "Original 2021 height distribution, with density overlay of treated and substituted data",
-    subtitle = paste0("Total Cleaned: ", scales::comma(h_final)),
     x = "Height (cm)", 
     y = "Number of Participants", 
     color = "Density Curve"
   ) +
   theme_minimal()
 
-##plot 11: boxplot visualizing outliers and treated 2021----
+##plot 12: boxplot visualizing outliers and treated 2021----
 summary(v3$h21_valid)
 summary(v3$h_impt)
 
@@ -949,7 +1125,7 @@ v3 %>%
 v3_long <- v3 %>%
   select(
     w21_hes, w21_plaus, w24_hes, w24_plaus,
-    h21_valid, h_impt, 
+    h21_treated, h_impt, 
     weight_2021, weight_2024, height_2021
   ) %>%
   pivot_longer(
@@ -966,7 +1142,7 @@ v3_long <- v3 %>%
       grepl("weight_2021|weight_2024|height_2021", Source) ~ "Original",
       grepl("hes", Source) ~ "HES",
       Source == "h_impt" ~ "Substituted",
-      grepl("plaus|valid", Source) ~ "Plausibility",
+      grepl("plaus|treated", Source) ~ "Plausibility",
       TRUE ~ "Other"
     ),
     # 3. FORCE BASELINE: Order levels so 'Original' is always Group 1 (Reference)
@@ -1001,7 +1177,7 @@ SMD_w24_hes <- smd(w24_hesComp$Value, w24_hesComp$Status, na.rm = TRUE)
 w24_plausComp <- v3_long %>% 
   filter(Source %in% c("weight_2024", "w24_plaus")) %>% 
   droplevels()
-SMD_w21_plaus <- smd(w24_plausComp$Value, w24_plausComp$Status, na.rm = TRUE)
+SMD_w24_plaus <- smd(w24_plausComp$Value, w24_plausComp$Status, na.rm = TRUE)
 
 # 5. Comparison for Height 2021 (Substituted vs Original)
 h_imptComp <- v3_long %>% 
@@ -1010,35 +1186,45 @@ h_imptComp <- v3_long %>%
 SMD_h_impt <- smd(h_imptComp$Value, h_imptComp$Status, na.rm = TRUE)
 
 #6 Comparison for Height 2021 (treated vs Original)
-h_validComp <- v3_long %>% 
-  filter(Source %in% c("height_2021", "h21_valid")) %>% 
+h_treatedComp <- v3_long %>% 
+  filter(Source %in% c("height_2021", "h21_treated")) %>% 
   droplevels()
-SMD_h_impt <- smd(h_validComp$Value, h_validComp$Status, na.rm = TRUE)
+SMD_h_treated <- smd(h_treatedComp$Value, h_treatedComp$Status, na.rm = TRUE)
 
 
 ## Define the pairs for comparison----
 comparisons <- list(
   w21_hes_v_O    = c("weight_2021", "w21_hes"),
   w21_plaus_v_O  = c("weight_2021", "w21_plaus"),
+  
   w24_hes_v_O    = c("weight_2024", "w24_hes"),
   w24_plaus_v_O  = c("weight_2024", "w24_plaus"),
-  h_valid_v_O = c("height_2021", "h21_valid"),
+  
+  h_treated_v_O = c("height_2021", "h21_treated"),
   h_impt_v_O   = c("height_2021", "h_impt")
 )
 
-## SMD for each pair----
-smd_results <- lapply(comparisons, function(pair) {
-  df_sub <- v3_long %>% filter(Source %in% pair) %>% droplevels()
+smd_results <- lapply(names(comparisons), function(nm) {
+  pair <- comparisons[[nm]]
+  
+  # 1. Filter the data
+  df_sub <- v3_long %>% 
+    filter(Source %in% pair) %>% 
+    filter(!is.na(Value))
+  df_sub <- df_sub %>% droplevels()
   result <- smd(df_sub$Value, df_sub$Status, na.rm = TRUE)
   return(result$estimate)
 })
+
+# Name and View
+names(smd_results) <- names(comparisons)
 unlist(smd_results)
 
 ##among treated ----
 comparisons_among_treated <- list(
   w21_plaus_v_hes = c("w21_hes", "w21_plaus"),
   w24_plaus_v_hes = c("w24_hes", "w24_plaus"),
-  h_impt_v_valid  = c("h21_valid", "h_impt")
+  h_impt_v_treated  = c("h21_treated", "h_impt")
 )
 
 # Run all "Among Treated" comparisons at once
@@ -1099,13 +1285,16 @@ v3 <- v3 %>%
                 ), 
                 .names = "{.col}_label"))
 
+
+
 summary(v3$BMI_24)
 sd(v3$BMI_21, na.rm = TRUE)
 sd(v3$BMI_24, na.rm = TRUE)
 
-##plot 12: scatter plot----
-library(ggplot2)
+v3 %>%
+  count(BMI_24_label)
 
+##plot 13: scatter plot----
 ggplot(v3, aes(x = BMI_21, y = BMI_24)) +
   # Use very low alpha (0.1) due to the large N = 44,834
   geom_point(alpha = 0.1, color = "midnightblue") +
@@ -1113,11 +1302,17 @@ ggplot(v3, aes(x = BMI_21, y = BMI_24)) +
   # Add the 'No Change' reference line
   geom_abline(intercept = 0, slope = 1, color = "orange", linetype = "dashed", linewidth = 1) +
   
+  geom_smooth(
+    aes(color = "Linear Trend"), 
+    method = "lm", 
+    se = TRUE, linewidth = 1, linetype = "solid"
+  ) +
+  
   # Focus on the realistic BMI range (15 to 50)
   coord_cartesian(xlim = c(10, 70), ylim = c(10, 70)) +
   
   labs(
-    title = "BMI Trajectory: 2021 and 2024",
+    title = "BMI in 2021 and 2024",
     subtitle = paste0("Plausibility interval for weight; Treated and substituted data for height\n"), 
     x = "BMI in 2021",
     y = "BMI in 2024"
@@ -1150,7 +1345,7 @@ ggplot(v3, aes(x = BMI_21, y = BMI_24)) +
 library(ggplot2)
 library(tidyr)
 
-##plot 13: BMI 21 & 24 density overlay----
+##plot 14: BMI 21 & 24 density overlay----
 # Reshape just the BMI columns for easy plotting
 bmi_overlay_data <- v3 %>%
   select(BMI_21, BMI_24) %>%
@@ -1161,7 +1356,7 @@ bmi_overlay_data <- v3 %>%
 # Create the overlay plot
 ggplot(bmi_overlay_data, aes(x = BMI, fill = Year)) +
   geom_density(alpha = 0.4) +
-  scale_fill_manual(values = c("2021" = "steelblue1", "2024" = "grey2")) +
+  scale_fill_manual(values = c("2021" = "#AED581", "2024" = "#33691E")) +
   coord_cartesian(xlim = c(10, 70)) + # Focused range for clinical relevance
   labs(
     title = "Population BMI Shift: 2021 vs 2024",
@@ -1184,6 +1379,33 @@ ggplot(bmi_overlay_data, aes(x = BMI, fill = Year)) +
 
 
 #H1: LS & BMI global----
+##sample audit: understanding attrition----
+sample_audit <- v3 %>%
+  summarise(
+    Step_0_Total_Rows = n(),
+    
+    # 2021 Filters
+    Step_1_Has_BMI_21 = sum(!is.na(BMI_21_label)),
+    Step_2_Has_BMI_and_LS_21 = sum(!is.na(BMI_21_label) & !is.na(LS_2021)),
+    
+    # 2024 Filters
+    Step_3_Has_BMI_24 = sum(!is.na(BMI_24_label)),
+    Step_4_Longitudinal_BMI_LS = sum(!is.na(BMI_21_label) & !is.na(LS_2021) & 
+                                       !is.na(BMI_24_label) & !is.na(LS_2024)),
+    
+    # Effect Modifiers (Replace 'Gender'/'Age' with your actual column names)
+    Step_5_Full_Analytical_Sample = sum(!is.na(BMI_21_label) & !is.na(LS_2021) & 
+                                          !is.na(BMI_24_label) & !is.na(LS_2024) &
+                                          !is.na(sex_valid) & !is.na(age_2021_imputed))
+  )
+
+# Transpose it to make it a readable list
+t(sample_audit)
+
+
+
+
+
 # 1. Summary Table of Life Satisfaction by BMI Category
 # Check the association using your professional labels
 h1_results <- v3 %>%
@@ -1202,7 +1424,92 @@ h1_results <- v3 %>%
 
 print(h1_results)
 
-##plot 14: scatterplot LS21 & BMI----
+
+
+##one-way ANOVA----
+# 1. Create a dedicated Hypothesis 1 dataframe
+h1_data <- v3 %>%
+  # Keep only those who have BOTH necessary ingredients
+  filter(!is.na(BMI_21_label), !is.na(LS_2021)) %>%
+  # This 'drops' any factor levels that have 0 people (like 'NA')
+  mutate(BMI_21_label = droplevels(factor(BMI_21_label, 
+                                          levels = c("Underweight", "Healthy", "Overweight",
+                                                     "Obese I", "Obese II", "Obese III"))))
+
+# 2. Run the ANOVA on this specific subset
+h1_anova_final <- aov(LS_2021 ~ BMI_21_label, data = h1_data)
+
+# 3. Check the summary
+summary(h1_anova_final)
+# 2. Run the ANOVA again on the NEW v3
+h1_anova_final <- aov(LS_2021 ~ BMI_21_label, data = v3)
+
+# 3. Check the "Observations Deleted" message at the bottom
+summary(h1_anova_final)
+
+
+
+##⭐️TABLE 1⭐️----
+# 1. Install and load the package
+library(gtsummary)
+
+# 1. First, make sure sex_valid is a factor with both levels
+v3$sex_valid <- factor(v3$sex_valid)
+
+# 2. Build the table with safety checks
+table1_final <- v3 %>%
+  # Filter out the NAs for BMI first so the p-values don't get confused
+  filter(!is.na(BMI_24_label)) %>% 
+  select(age_2021_imputed, sex_valid, w21_plaus, h_impt, BMI_24_label, LS_2024) %>%
+  tbl_summary(
+    by = BMI_24_label,
+    # 'categorical' forces both Male/Female to show even if one is low N
+    type = list(sex_valid ~ "categorical"), 
+    statistic = list(all_continuous() ~ "{mean} (±{sd})",
+                     all_categorical() ~ "{n} ({p}%)"),
+    label = list(sex_valid ~ "Sex", LS_2024 ~ "Life Satisfaction")
+  ) %>%
+  add_overall() %>%
+  # Using 'everything()' ensures it tries to calculate p-values for all
+  add_p(test = list(all_continuous() ~ "kruskal.test", 
+                    all_categorical() ~ "chisq.test")) %>% 
+  bold_labels()
+
+# 3. View it
+table1_final
+
+
+
+
+# ###marginal effects plot----
+# library(sjPlot)
+# library(sjmisc)
+# 
+# # This creates a summary table of LS_2021 by BMI Categories
+# # It's perfect for showing the Means and SDs clearly
+# v3 %>%
+#   group_by(BMI_21_label) %>%
+#   select(LS_2021, age_2021_imputed, weight_2021) %>% 
+#   descr() %>% # From the sjmisc package
+#   as.data.frame()
+# 
+# # 1. Re-run your model as a Linear Model (lm)
+# fit <- lm(LS_2021 ~ BMI_21_label, data = v3)
+# 
+# # 2. Plot the predicted Life Satisfaction for each category
+# plot_model(fit, type = "pred", terms = "BMI_21_label") +
+#   theme_sjplot() +
+#   labs(title = "Predicted Life Satisfaction by BMI Category",
+#        y = "Life Satisfaction (1-10)",
+#        x = "BMI Category")
+
+
+
+
+
+
+
+##plot 15: scatterplot LS21 & BMI----
 library(ggplot2)
 
 v3 %>%
@@ -1275,7 +1582,7 @@ stargazer(h1_model_full,
 
 
 
-##plot 15: scatterplot w curve ----
+##plot 16: scatterplot w curve ----
 v3 %>%
   # Apply filters BEFORE ggplot
   # filter(age_2021 >= 25) %>%
