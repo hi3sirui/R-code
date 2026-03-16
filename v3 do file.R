@@ -1017,28 +1017,24 @@ library(gtsummary)
 library(dplyr)
 table_output <- v3 %>%
   mutate(
-    # This forces the order you want in the table rows
     BMI_21_label = factor(BMI_21_label, levels = c(
-      "Underweight", 
-      "Healthy", 
-      "Overweight", 
-      "Obese I", 
-      "Obese II", 
-      "Obese III"
+      "Underweight", "Healthy", "Overweight", 
+      "Obese I", "Obese II", "Obese III"
     ))
   ) %>%
-  filter(sex_valid=="Female")%>%
-  # Select the original variables you wanted to look at
+  filter(sex_valid == "Female") %>%
   select(LS_2021, BMI_21_label) %>%
   tbl_summary(
-    by = BMI_21_label, # This puts BMI in columns (or remove 'by' for rows)
+    by = BMI_21_label, # BMI is in the columns
     label = list(
-      LS_2021 ~ "Life Satisfaction (0-10)",
-      BMI_21_label ~ "BMI Category (WHO)"
+      LS_2021 ~ "Life Satisfaction (0-10)" 
+      # BMI_21_label removed from here!
     ),
     missing = "always",
     missing_text = "Missing Data"
   ) %>%
+  # Use this to add a label above the BMI categories
+  modify_spanning_header(all_stat_cols() ~ "**BMI Category, 2021 (WHO)**") %>% 
   add_p() %>%
   bold_labels()
 
@@ -1070,6 +1066,7 @@ v3 %>%
   ) %>%
   add_overall() %>%
   # Now add_p() will work because all remaining variables have variation
+  modify_spanning_header(all_stat_cols() ~ "Descriptive statistics 2021, females only") %>% 
   add_p(test = list(all_continuous() ~ "kruskal.test")) %>%
   bold_labels()
 
