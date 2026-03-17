@@ -95,13 +95,6 @@ v3 <- v3 %>%
     )
   )
 
-  
-
-##removing participation histories----
-library(tidyverse)
-v3 <- v3 %>%
-  select(-par_1993,-par_1999, -par_2009, -par_2020)
-
 
 #sanity check: missing in 2021,  2024, OR both
 # sum(is.na(v3$age_2024) | is.na(v3$cpr_alder)) == 
@@ -243,13 +236,15 @@ v3 <- v3 %>%
     w24_hes   = if_else(w24_treated >= 48.5 & w24_treated <= 99, w24_treated, NA_real_)
   )
 
-v3 <- v3 %>%
-  mutate(
-    w24_plaus_f = case_when(
-      w24_treated >=40 & w24_treated<=192 & sex_valid == "Female" ~ w24_treated,
-      TRUE ~ NA_real_
-    )
-  )
+##no need to create separate columns for females bc the filtering logic excluded all male participants
+
+# v3 <- v3 %>%
+#   mutate(
+#     w24_plaus_f = case_when(
+#       w24_treated >=40 & w24_treated<=192 & sex_valid == "Female" ~ w24_treated,
+#       TRUE ~ NA_real_
+#     )
+#   )
 
 # v3 <- v3 %>%
 #   mutate(
@@ -259,13 +254,13 @@ v3 <- v3 %>%
 #     )
 #   )
 
-v3 <- v3 %>%
-  mutate(
-    w24_hes_f = case_when(
-      w24_treated>=48.5 & w24_treated<=86.5 & sex_valid == "Female" ~ w24_treated,
-      TRUE ~ NA_real_ #real_ for numeric NA
-    )
-  )
+# v3 <- v3 %>%
+#   mutate(
+#     w24_hes_f = case_when(
+#       w24_treated>=48.5 & w24_treated<=86.5 & sex_valid == "Female" ~ w24_treated,
+#       TRUE ~ NA_real_ #real_ for numeric NA
+#     )
+#   )
 
 # v3 <- v3 %>%
 #   mutate(
@@ -1461,5 +1456,83 @@ LS_BMI_21 <- v3 %>%
 # 2. Display the table
 LS_BMI_21
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#BMI & LS, modified by body image----
+# 1. Run the Model
+# LS_2021 = Outcome
+# BMI_cont = Exposure
+# weight_statement = Modifier
+# age = Covariate (Control)
+
+# 1. Convert to a Factor (Category)
+v3$weight_statement_f21 <- as.factor(v3$weight_statement_d_2021)
+
+# 2. Re-run the model using the NEW factor variable
+model_mod <- lm(LS_2021 ~ BMI_21 * weight_statement_f21 + age_2021, data = v3)
+
+# 2. View the Results
+summary(model_mod)
+
+library(ggplot2)
+library(ggeffects)
+
+# Calculate the predicted values based on your model
+predictions <- predict_response(model_mod, terms = c("BMI_21 [all]", "weight_statement_f21"))
+
+# Create the plot
+plot(predictions) +
+  labs(
+    title = "Effect modification of body image on the relationship betwen BMI and life satisfaction",
+    x = "BMI 2021",
+    y = "Predicted Life Satisfaction, using slope of -0.0357",
+    colour = "Weight Statement 2021"
+  ) +
+  theme_minimal()
+
+
+
+# 3. Now run the slope command again
+library(emmeans)
+emtrends(model_mod, ~ weight_statement_f21, var = "BMI_21")
+library(emmeans)
+
+# This is the "Magic Command" for your thesis
+lstrends(model_mod, ~ weight_statement_f21, var = "BMI_21")
+
+
+##consistently felt thicker than most ----
+# Create a subset of "Consistent Identifiers"
+cons_thicker_21 <- v3 %>%
+  filter(
+    weight_statement_a_2021 == 1 & 
+      weight_statement_b_2021 == 1 & 
+      weight_statement_c_2021 == 1 &
+      weight_statement_d_2021 == 1
+  )
+
+# Run the linear model on JUST this group
+model_consistent <- lm(LS_2021 ~ BMI_21 + age_2021, data = cons_thicker_21)
+summary(model_consistent)
 
 
