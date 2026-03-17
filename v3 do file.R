@@ -1,9 +1,9 @@
 #READY TO USE V3 KEEP UPDATING----
 library(dplyr)
 
-#v3 <- read.csv("/Users/siruizhang/Thesis/v3.csv")
+v3 <- read.csv("/Users/siruizhang/Thesis/v3.csv")
 
-v3 <- read.csv("L:/Auditdata/Students/Lexi/v3.csv")
+# v3 <- read.csv("L:/Auditdata/Students/Lexi/v3.csv")
 View(v3)
 
 
@@ -904,6 +904,7 @@ ggplot(bmi_overlay_data, aes(x = BMI, fill = Year)) +
 
 
 
+v3F <- v3 %>% filter(sex_valid == "Female")
 
 #H1: LS & BMI global----
 ##sample audit: understanding attrition----
@@ -1149,14 +1150,14 @@ table1(~ age + height + weight + bmi + ls + bmi_cat,
 
 ##plot 17: 2021 LS & BMI----
 library(ggplot2)
+plot_data_h1 <- v3F %>%
+  filter(
+    !is.na(BMI_21), 
+    !is.na(LS_2021), 
+    !is.na(age_2021) # Adding age check for consistency
+  )
 
-v3 %>%
-  # # Apply your specific H1 exclusion criteria
-  # filter(age_2021 >= 25) %>%
-  # Remove NAs for the specific variables being plotted
-  filter(!is.na(BMI_21), !is.na(LS_2021)) %>%
-  # 
-  ggplot(aes(x = BMI_21, y = LS_2021)) +
+ggplot(plot_data_h1, aes(x = BMI_21, y = LS_2021)) +
   # Jitter to show the density of your mature nurse population
   geom_jitter(alpha = 0.05, color = "midnightblue", width = 0.2, height = 0.2) +
   
@@ -1167,19 +1168,17 @@ v3 %>%
   coord_cartesian(xlim = c(10, 70)) +
   
   labs(
-    title = "Hypothesis 1: BMI & Life Satisfaction (Full Cohort)",
-    subtitle = paste0("N = ", sum(!is.na(v3$age_2021_imputed)), 
+    title = "Hypothesis 1: BMI & Life Satisfaction, 2021 (females only)",
+    subtitle = paste0("N = ", format(nrow(plot_data_h1), big.mark = ","), 
                       " | Substituted height & plausibility weight used\n",
-                      "Red line indicates the linear association for all ages."),
+                      "Red line indicates the line of best fit."),
     x = "BMI in 2021",
     y = "Life Satisfaction in 2021"
   ) +
   theme_minimal()
 
 ### slope of the regression line----
-h1_model <- lm(LS_2021 ~ BMI_21, data = v3)
-
-# 2. View the full statistics (p-value, R-squared, etc.)
+h1_model <- lm(LS_2021 ~ BMI_21, data = plot_data_h1)
 summary(h1_model)
 
 # 3. Extract just the slope coefficient
@@ -1223,14 +1222,14 @@ h24_slope <- coef(h24_model)["BMI_24"]
 print(paste("The slope for the BMI & Life Satisfaction relationship is:", round(h24_slope, 4)))
 
 
-
+library(ggplot2)
 
 ##LS21 & BMI 21----
 v3 %>%
   # # Apply your specific H1 exclusion criteria
   # filter(age_2021 >= 25) %>%
   # Remove NAs for the specific variables being plotted
-  filter(!is.na(BMI_21), !is.na(LS_2021)) %>%
+  filter(!is.na(BMI_21), !is.na(LS_2021), sex_valid=="Female") %>%
   # 
   ggplot(aes(x = BMI_21, y = LS_2021)) +
   # Jitter to show the density of your mature nurse population
@@ -1248,10 +1247,11 @@ v3 %>%
   ) +
   theme_minimal()
 
-
-
 ###slope of the regression line----
-h21_model <- lm(LS_2021 ~ BMI_21, data = v3)
+h21_model <- lm(LS_2021 ~ BMI_21, 
+                data = v3 %>% filter(sex_valid == "Female"))
+
+summary(h21_model)
 
 # 2. View the full statistics (p-value, R-squared, etc.)
 summary(h21_model)
@@ -1474,65 +1474,156 @@ LS_BMI_21
 
 
 
-
-
-
-
 #BMI & LS, modified by body image----
-# 1. Run the Model
-# LS_2021 = Outcome
-# BMI_cont = Exposure
-# weight_statement = Modifier
-# age = Covariate (Control)
+# --- DATA PREP ---
+# Filter for Females FIRST to avoid errors
+# --- DATA PREP ---
+# Filter for Females FIRST to avoid errors
+v3F <- v3 %>% filter(sex_valid == "Female")
+View(v3F)
 
-# 1. Convert to a Factor (Category)
-v3$weight_statement_f21 <- as.factor(v3$weight_statement_d_2021)
+# Create the Cumulative History Score (0-4)
+v3F <- v3F %>%
+  mutate(
+    h1 = if_else(weight_statement_a_2021 == 1, 1, 0, missing = 0),
+    h2 = if_else(weight_statement_b_2021 == 1, 1, 0, missing = 0),
+    h3 = if_else(weight_statement_c_2021 == 1, 1, 0, missing = 0),
+    h4 = if_else(weight_statement_d_2021 == 1, 1, 0, missing = 0),
+    heavy_history_score = h1 + h2 + h3 + h4,
+    # Create the factor for the interaction plot
+    weight_perception_2021 = as.factor(weight_statement_d_2021)
+  )
+library(ggplot2)
 
-# 2. Re-run the model using the NEW factor variable
-model_mod <- lm(LS_2021 ~ BMI_21 * weight_statement_f21 + age_2021, data = v3)
-
-# 2. View the Results
-summary(model_mod)
+# Calculate means for each score
+v3F %>%
+  filter(!is.na(heavy_history_score), !is.na(LS_2021)) %>%
+  ggplot(aes(x = factor(heavy_history_score), y = LS_2021, fill = factor(heavy_history_score))) +
+  stat_summary(fun = mean, geom = "bar", alpha = 0.7) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.2) +
+  scale_fill_brewer(palette = "Reds") +
+  labs(
+    title = "The Cumulative Burden of Weight History",
+    subtitle = "Average Life Satisfaction drops with every life stage spent feeling 'heavy'",
+    x = "Number of Life Stages Feeling 'Heavier than Peers' (0-4)",
+    y = "Mean Life Satisfaction (0-10)",
+    fill = "Score"
+  ) +
+  theme_minimal() +
+  coord_cartesian(ylim = c(6, 8)) # Zoom in to see the difference clearly
 
 library(ggplot2)
-library(ggeffects)
+library(dplyr)
 
-# Calculate the predicted values based on your model
-predictions <- predict_response(model_mod, terms = c("BMI_21 [all]", "weight_statement_f21"))
+# 1. Prepare the data: Filter and Label
+plot_interaction_data <- v3F %>%
+  filter(!is.na(BMI_21), !is.na(LS_2021), !is.na(weight_perception_2021)) %>%
+  mutate(Perception = factor(weight_perception_2021, 
+                             levels = c(1, 2, 3), 
+                             labels = c("Heavier than peers", 
+                                        "Thinner than peers", 
+                                        "No particular difference")))
 
-# Create the plot
-plot(predictions) +
+# 2. Generate the plot
+ggplot(plot_interaction_data, aes(x = BMI_21, y = LS_2021, color = Perception)) +
+  # This creates the 3 separate regression lines
+  geom_smooth(method = "lm", se = TRUE, linewidth = 1.2) +
+  
+  # Focus on the most common BMI range to see the slope differences clearly
+  coord_cartesian(xlim = c(15, 55), ylim = c(6.5, 8.5)) +
+  
+  scale_color_manual(values = c("firebrick", "dodgerblue3", "forestgreen")) +
+  
   labs(
-    title = "Effect modification of body image on the relationship betwen BMI and life satisfaction",
-    x = "BMI 2021",
-    y = "Predicted Life Satisfaction, using slope of -0.0357",
-    colour = "Weight Statement 2021"
+    title = "Weight perception moderating BMI-LS 2021",
+    x = "Measured BMI (2021)",
+    y = "Predicted Life Satisfaction (0-10)",
+    color = "weight perceptions since 25 yo"
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position = "bottom")
 
 
 
-# 3. Now run the slope command again
-library(emmeans)
-emtrends(model_mod, ~ weight_statement_f21, var = "BMI_21")
-library(emmeans)
+# --- THE THREE MODELS ---
+# Model 1: The Baseline (BMI only)
+model_simple <- lm(LS_2021 ~ BMI_21, data = v3F)
+summary(model_simple)
 
-# This is the "Magic Command" for your thesis
-lstrends(model_mod, ~ weight_statement_f21, var = "BMI_21")
+# Model 2: The Life-Course History (Cumulative Risk)
+model_history <- lm(LS_2021 ~ heavy_history_score + BMI_21 + age_2021, data = v3F)
+summary(model_history)
 
+# Model 3: The Interaction (Perception as an Effect Modifier)
+model_interaction <- lm(LS_2021 ~ BMI_21 * weight_perception_2021 + age_2021, data = v3F)
+summary(model_interaction)
 
-##consistently felt thicker than most ----
-# Create a subset of "Consistent Identifiers"
-cons_thicker_21 <- v3 %>%
-  filter(
-    weight_statement_a_2021 == 1 & 
-      weight_statement_b_2021 == 1 & 
-      weight_statement_c_2021 == 1 &
-      weight_statement_d_2021 == 1
+library(dplyr)
+
+# Summary table for the 3 groups
+summary_stats <- plot_interaction_data %>%
+  group_by(Perception) %>%
+  summarise(
+    N = n(),
+    Mean_BMI = mean(BMI_21, na.rm = TRUE),
+    SD_BMI = sd(BMI_21, na.rm = TRUE),
+    Mean_LS = mean(LS_2021, na.rm = TRUE),
+    SD_LS = sd(LS_2021, na.rm = TRUE)
   )
 
-# Run the linear model on JUST this group
-model_consistent <- lm(LS_2021 ~ BMI_21 + age_2021, data = cons_thicker_21)
-summary(model_consistent)
+print(summary_stats)
 
+# A quick way to get the 3 individual slopes for your talk
+library(purrr)
+library(broom)
 
+three_slopes <- plot_interaction_data %>%
+  split(.$Perception) %>%
+  map(~lm(LS_2021 ~ BMI_21, data = .)) %>%
+  map_df(tidy, .id = "Perception") %>%
+  filter(term == "BMI_21")
+
+print(three_slopes)
+
+# install.packages("modelsummary")
+install.packages("modelsummary")
+library(modelsummary)
+
+# Create a list of your models
+models <- list(
+  "Baseline" = model_simple,
+  "Life Course" = model_history,
+  "Interaction" = model_interaction
+)
+
+# Generate the table
+modelsummary(models, 
+             stars = TRUE, 
+             title = "Relationship between BMI and LS modified by body image, 2021",
+             notes = c(
+               "heavy_history score: cumulative score (0-4) where participants received 1 point for each life stage they reported feeling heavier than others",
+               "weight_perception_20122: participants who felt thinner than others as an adult",
+               "weight_perception_20123: participants who articipants who reported feeling no particular difference in weight from others as an adult")
+             )
+
+library(car)
+#variance inflaction factor
+vif(model_history) #heavy_history_score = 1.534275
+
+# Check each stage as a separate 'Yes/No'
+model_stages <- lm(LS_2021 ~ h1 + h2 + h3 + h4 + BMI_21 + age_2021, data = v3F)
+summary(model_stages) #only h4 had p<0.05
+
+# Model A: Just the physical reality (BMI)
+model_physical <- lm(LS_2021 ~ BMI_21 + age_2021, data = v3F)
+
+# Model B: Adding the Psychological History (The Cumulative Score)
+model_cumulative <- lm(LS_2021 ~ BMI_21 + age_2021 + heavy_history_score, data = v3F)
+
+# Compare them side-by-side
+library(modelsummary)
+models <- list("Physical Only" = model_physical, "Cumulative History" = model_cumulative)
+modelsummary(models, stars = TRUE, title = "Testing the Cumulative Impact of Weight History")
+
+library(car)
+vif(model_cumulative) #heavy_history_score - 1.534275
