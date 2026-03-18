@@ -1,9 +1,9 @@
 #READY TO USE V3 KEEP UPDATING----
 library(dplyr)
 
-v3 <- read.csv("/Users/siruizhang/Thesis/v3.csv")
+# v3 <- read.csv("/Users/siruizhang/Thesis/v3.csv")
 
-# v3 <- read.csv("L:/Auditdata/Students/Lexi/v3.csv")
+v3 <- read.csv("L:/Auditdata/Students/Lexi/v3.csv")
 View(v3)
 
 
@@ -115,6 +115,8 @@ v3 <- v3 %>%
     ),
     sex_valid = coalesce(sex_valid, sex)
   )
+
+
 
 ##removing male participants----
 # v3 <- v3 %>%
@@ -908,7 +910,7 @@ v3F <- v3 %>% filter(sex_valid == "Female")
 
 #H1: LS & BMI global----
 ##sample audit: understanding attrition----
-sample_audit <- v3 %>%
+sample_audit <- v3F %>%
   summarise(
     Step_0_Total_Rows = n(),
     
@@ -932,7 +934,7 @@ t(sample_audit) #17567
 
 ###LS by BMI categories, 2021----
 # Check the association using your professional labels
-h21_results <- v3 %>%
+h21_results <- v3F %>%
   filter(!is.na(BMI_21_label), !is.na(LS_2021), sex_valid=="Female") %>%
   group_by(BMI_21_label) %>%
   summarise(
@@ -948,7 +950,7 @@ h21_results <- v3 %>%
 print(h21_results)
 
 ###LS by BMI categories, 2024----
-h24_results <- v3 %>%
+h24_results <- v3F %>%
   filter(!is.na(BMI_24_label), !is.na(LS_2024), sex_valid=="Female") %>%
   group_by(BMI_24_label) %>%
   summarise(
@@ -1154,7 +1156,7 @@ plot_data_h1 <- v3F %>%
   filter(
     !is.na(BMI_21), 
     !is.na(LS_2021), 
-    !is.na(age_2021) # Adding age check for consistency
+    !is.na(age_2021_imputed) # Adding age check for consistency
   )
 
 ggplot(plot_data_h1, aes(x = BMI_21, y = LS_2021)) +
@@ -1321,7 +1323,7 @@ print(paste("The slope of the linear relationship is:", round(slope, 4)))
 
 
 ##curvilinear scatterplot, 2021 ----
-v3 %>%
+v3F %>%
   # Apply filters BEFORE ggplot
   # filter(age_2021 >= 25) %>%
   filter(!is.na(BMI_21), !is.na(LS_2021)) %>%
@@ -1337,29 +1339,31 @@ v3 %>%
   coord_cartesian(xlim = c(10, 70)) +
   
   labs(
-    title = "Hypothesis 1: Curvilinear Relationship (Full Cohort)",
+    title = "Hypothesis 1: BMI & Life Satisfaction, 2021 (females only)",
+    subtitle = paste0("N = ", format(nrow(plot_data_h1), big.mark = ","), 
+                      " | Substituted height & plausibility weight used\n"),
     x = "BMI in 2021",
     y = "Life Satisfaction in 2021"
   ) +
   theme_minimal()
 
-###finding the vertex of the curve----
-# 1. Run the quadratic model
-quad_model <- lm(LS_2021 ~ BMI_21 + I(BMI_21^2), data = v3)
 
-# 2. Extract coefficients
-b21 <- coef(quad_model)["BMI_21"]
-a21 <- coef(quad_model)["I(BMI_21^2)"]
+# install.packages("marginaleffects")
+library(marginaleffects)
 
-# 3. Calculate Vertex
-vertex_bmi_21 <- -b21 / (2 * a21)
-vertex_bmi_21
+# Calculate the slope (penalty) at specific BMI points for each perception group
+slopes_table <- avg_slopes(model_quad_interaction, 
+                           variables = "BMI_21", 
+                           by = "weight_statement_d_2021",
+                           newdata = datagrid(BMI_21 = c(25, 35, 45)))
+
+print(slopes_table)
 
 
 
 
 ##2024 CURVILINEAR----
-v3 %>%
+v3F %>%
   # Apply filters BEFORE ggplot
   # filter(age_2021 >= 25) %>%
   filter(!is.na(BMI_24), !is.na(LS_2024)) %>%
@@ -1472,6 +1476,14 @@ LS_BMI_21
 
 
 
+# The "Ultimate" Model: Quadratic terms interacted with Perception
+model_quad_interaction <- lm(LS_2021 ~ (BMI_21 + I(BMI_21^2)) * weight_perception_2021 + age_2021_imputed, data = v3F)
+
+# 1. Check the coefficients
+summary(model_quad_interaction)
+
+# 2. Compare this to your previous "Main" model
+AIC(model_interaction, model_quad_interaction)
 
 
 #BMI & LS, modified by body image----
@@ -1493,24 +1505,7 @@ v3F <- v3F %>%
     # Create the factor for the interaction plot
     weight_perception_2021 = as.factor(weight_statement_d_2021)
   )
-library(ggplot2)
 
-# Calculate means for each score
-v3F %>%
-  filter(!is.na(heavy_history_score), !is.na(LS_2021)) %>%
-  ggplot(aes(x = factor(heavy_history_score), y = LS_2021, fill = factor(heavy_history_score))) +
-  stat_summary(fun = mean, geom = "bar", alpha = 0.7) +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.2) +
-  scale_fill_brewer(palette = "Reds") +
-  labs(
-    title = "The Cumulative Burden of Weight History",
-    subtitle = "Average Life Satisfaction drops with every life stage spent feeling 'heavy'",
-    x = "Number of Life Stages Feeling 'Heavier than Peers' (0-4)",
-    y = "Mean Life Satisfaction (0-10)",
-    fill = "Score"
-  ) +
-  theme_minimal() +
-  coord_cartesian(ylim = c(6, 8)) # Zoom in to see the difference clearly
 
 library(ggplot2)
 library(dplyr)
@@ -1551,8 +1546,30 @@ model_simple <- lm(LS_2021 ~ BMI_21, data = v3F)
 summary(model_simple)
 
 # Model 2: The Life-Course History (Cumulative Risk)
-model_history <- lm(LS_2021 ~ heavy_history_score + BMI_21 + age_2021, data = v3F)
+model_history <- lm(LS_2021 ~ heavy_history_score + BMI_21 + age_2021_imputed, data = v3F)
 summary(model_history)
+
+library(ggplot2)
+library(dplyr)
+
+# 1. Prepare the data
+# We treat the score as a factor so we can see the 5 distinct groups (0, 1, 2, 3, 4)
+plot_data_h2 <- v3F %>%
+  filter(!is.na(heavy_history_score), !is.na(LS_2021)) %>%
+  mutate(Score_Factor = as.factor(heavy_history_score))
+
+# 2. Create a "Point-Range" plot (shows the mean and confidence interval for each score)
+ggplot(plot_data_h2, aes(x = Score_Factor, y = LS_2021, fill = Score_Factor)) +
+  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar", width = 0.2, color = "black") +
+  stat_summary(fun = "mean", geom = "point", size = 4, shape = 21, color = "black") +
+  scale_fill_brewer(palette = "Reds") +
+  labs(
+    title = "Model 2: The Cumulative Life Course Effect",
+    x = "heavy history score 2021' (0 to 4)",
+    y = "Mean Life Satisfaction (2021)",
+    caption = "life stages: <13, 13-19, 19-25, and 25+") +
+  theme_minimal() +
+  guides(fill = "none")
 
 # Model 3: The Interaction (Perception as an Effect Modifier)
 model_interaction <- lm(LS_2021 ~ BMI_21 * weight_perception_2021 + age_2021, data = v3F)
@@ -1627,3 +1644,16 @@ modelsummary(models, stars = TRUE, title = "Testing the Cumulative Impact of Wei
 
 library(car)
 vif(model_cumulative) #heavy_history_score - 1.534275
+
+
+
+# 1. Define the Simple Linear Model (The "Straight Line")
+# 1. The Simple Linear Model
+model_linear <- lm(LS_2021 ~ BMI_21 + age_2021_imputed, data = v3F)
+
+# 2. The Polynomial Model (The "Curve")
+# We add the squared term manually
+model_poly <- lm(LS_2021 ~ BMI_21 + I(BMI_21^2) + age_2021_imputed, data = v3F)
+
+# 3. THE TEST: Compare them
+anova(model_linear, model_poly)
