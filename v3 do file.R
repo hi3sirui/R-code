@@ -933,9 +933,9 @@ t(sample_audit) #17567
 
 
 ###LS by BMI categories, 2021----
-# Check the association using your professional labels
+# Check the association
 h21_results <- v3F %>%
-  filter(!is.na(BMI_21_label), !is.na(LS_2021), sex_valid=="Female") %>%
+  filter(!is.na(BMI_21_label), !is.na(LS_2021)) %>%
   group_by(BMI_21_label) %>%
   summarise(
     n = n(),
@@ -947,7 +947,25 @@ h21_results <- v3F %>%
                                levels = c("Underweight", "Healthy", "Overweight", "Obese I", "Obese II", "Obese III"))) %>%
   arrange(BMI_21_label)
 
-print(h21_results)
+# install.packages("flextable")
+library(flextable)
+
+ft <- h21_results %>%
+  flextable() %>%
+  set_header_labels(
+    BMI_21_label = "BMI_21 Category",
+    n = "N",
+    mean_LS21 = "LS_21 mean",
+    sd_LS21 = "LS_21 SD"
+  ) %>%
+  colformat_double(digits = 2) %>%
+  theme_vanilla() %>%
+  autofit()
+
+# To save it directly as a PowerPoint file:
+# library(officer)
+print(ft)
+
 
 ###LS by BMI categories, 2024----
 h24_results <- v3F %>%
@@ -1224,15 +1242,15 @@ h24_slope <- coef(h24_model)["BMI_24"]
 print(paste("The slope for the BMI & Life Satisfaction relationship is:", round(h24_slope, 4)))
 
 
-library(ggplot2)
-
 ##LS21 & BMI 21----
-v3 %>%
+###linear----
+library(ggplot2)
+v3F %>%
   # # Apply your specific H1 exclusion criteria
   # filter(age_2021 >= 25) %>%
   # Remove NAs for the specific variables being plotted
-  filter(!is.na(BMI_21), !is.na(LS_2021), sex_valid=="Female") %>%
-  # 
+  filter(!is.na(BMI_21), !is.na(LS_2021)) %>%
+  
   ggplot(aes(x = BMI_21, y = LS_2021)) +
   # Jitter to show the density of your mature nurse population
   geom_jitter(alpha = 0.05, color = "midnightblue", width = 0.2, height = 0.2) +
@@ -1249,24 +1267,159 @@ v3 %>%
   ) +
   theme_minimal()
 
-###slope of the regression line----
-h21_model <- lm(LS_2021 ~ BMI_21, 
-                data = v3 %>% filter(sex_valid == "Female"))
+####slope----
+H1_linear21 <- lm(LS_2021 ~ BMI_21, 
+                data = v3F)
+summary(H1_linear21)
 
-summary(h21_model)
+###curvilinear, loess()----
+plot_data_h1 <- v3F %>%
+  filter(
+    !is.na(BMI_21), 
+    !is.na(LS_2021), 
+    !is.na(age_2021_imputed) # Adding age check for consistency
+  )
 
-# 2. View the full statistics (p-value, R-squared, etc.)
-summary(h21_model)
+v3F %>%
+  # filter(age_2021 >= 25) %>%
+  filter(!is.na(BMI_21), !is.na(LS_2021)) %>%
+  
+  ggplot(aes(x = BMI_21, y = LS_2021)) +
+  # Midnight blue points as requested
+  geom_jitter(alpha = 0.05, color = "midnightblue", width = 0.2, height = 0.2) +
+  
+  # The loess line shows the "bend" at the low end
+  geom_smooth(method = "loess", color = "steelblue1", linewidth = 1.2) + 
+  
+  # Standardize the view to see the full cleaned range
+  coord_cartesian(xlim = c(10, 70)) +
+  
+  labs(
+    title = "Hypothesis 1: BMI & Life Satisfaction, 2021 (females only)",
+    subtitle = paste0("N = ", format(nrow(plot_data_h1), big.mark = ","), 
+                      " | Substituted height & plausibility weight used\n"),
+    x = "BMI in 2021",
+    y = "Life Satisfaction in 2021"
+  ) +
+  theme_minimal()
 
-# 3. Extract just the slope coefficient
-h21_slope <- coef(h21_model)["BMI_21"]
-print(paste("The slope for the BMI & Life Satisfaction relationship is:", round(h21_slope, 4)))
 
+###quadratic, parametric----
+library(ggplot2)
 
+# Ensure you are using the cleaned analytical sample
+ggplot(plot_data_h1, aes(x = BMI_21, y = LS_2021)) +
+  
+  # 1. The Raw Data (Midnight blue points)
+  geom_jitter(alpha = 0.05, color = "midnightblue", width = 0.2, height = 0.2) +
+  
+  # 2. THE QUADRATIC CURVE
+  # This uses the exact same math as your lm(LS ~ BMI + I(BMI^2)) model
+  geom_smooth(method = "lm", 
+              formula = y ~ x + I(x^2), 
+              color = "steelblue1", 
+              linewidth = 1.5, 
+              fill = "lightblue", # This adds the 95% Confidence Interval ribbon
+              alpha = 0.3) + 
+  
+  # 3. Standardize the view
+  coord_cartesian(xlim = c(15, 60), ylim = c(5, 9)) +
+  
+  # 4. Labels and Citations
+  labs(
+    title = "Hypothesis 1: The quadratic Association of BMI & Life Satisfaction",
+    subtitle = paste0("N = ", format(nrow(plot_data_h1), big.mark = ","), 
+                      "\nAdjusted for Age"),
+    x = "Measured BMI (2021)",
+    y = "Life Satisfaction (0-10)",
+    caption = "Data: Danish Nurse Cohort (2021). Curve represents the quadratic fit."
+  ) +
+  
+  theme_minimal()
+
+####model stat ----
+model_h1 <- lm(LS_2021 ~ BMI_21 + I(BMI_21^2) + age_2021_imputed, data = plot_data_h1)
+
+summary(model_h1)
 
 
 
 ##statistics ----
+###gtsummary, average LS & weight history score, 2021----
+library(dplyr)
+library(gt)
+
+# 1. Prepare the data (The "Summary" Table)
+presentation_data <- v3F %>%
+  mutate(
+    LS_2021 = as.numeric(as.character(LS_2021)),
+    heavy_history_score = as.numeric(as.character(heavy_history_score))
+  ) %>%
+  filter(!is.na(BMI_21_label)) %>%
+  group_by(BMI_21_label) %>%
+  summarise(
+    N = n(),
+    # These are your column "Legal Names"
+    `LS_21 mean` = mean(LS_2021, na.rm = TRUE),
+    `Feeling heavier than others` = mean(heavy_history_score, na.rm = TRUE)
+  ) %>%
+  mutate(BMI_21_label = factor(BMI_21_label, 
+                               levels = c("Underweight", "Healthy", "Overweight", "Obese I", "Obese II", "Obese III"))) %>%
+  arrange(BMI_21_label)
+
+# 2. Create the beautiful Presentation Table
+presentation_data %>%
+  gt() %>%
+  tab_header(
+    title = md("**Profile of BMI Categories (2021)**"),
+    subtitle = "Mean Life Satisfaction and Weight History Score"
+  ) %>%
+  tab_source_note(
+    source_note = md("*Life satisfaction (0-10).*")
+  ) %>%
+  tab_source_note(
+    source_note = md("*Heavy History Score (0-4): 1 point for each time the participants reported feeling heavier than others when they are <13 yo, 13-19 yo, 19-25yo, and >25yo.*")
+  ) %>%
+  
+  # Update labels to match your Legal Names
+  cols_label(
+    BMI_21_label = "BMI Group",
+    N = "Sample Size",
+    `LS_21 mean` = "Average life satisfaction",
+    `Feeling heavier than others` = "Average heavy history score"
+  ) %>%
+  
+  # Format decimals using the correct column names
+  fmt_number(
+    columns = c(`LS_21 mean`, `Feeling heavier than others`),
+    decimals = 2
+  ) %>%
+  
+  # Color scaling using the correct column names
+  data_color(
+    columns = `LS_21 mean`,
+    colors = scales::col_numeric(palette = "Blues", domain = NULL)
+  ) %>%
+  data_color(
+    columns = `Feeling heavier than others`,
+    colors = scales::col_numeric(palette = "Reds", domain = NULL)
+  ) %>%
+  tab_options(
+    table.width = pct(100),
+    column_labels.font.weight = "bold"
+  )
+
+# Test 1: Is Life Satisfaction significantly different across BMI groups?
+anova_ls <- aov(LS_2021 ~ BMI_21_label, data = v3F)
+summary(anova_ls)
+
+# Test 2: Is Weight History significantly different across BMI groups?
+anova_hist <- aov(heavy_history_score ~ BMI_21_label, data = v3F)
+summary(anova_hist)
+# Linear Trend Test for Life Satisfaction
+summary.lm(anova_ls) # Look at the 'Coefficients' for the linear trend
+
+
 ###linear regression, 25+----
 h1_model <- lm(LS_2021 ~ BMI_21, data = v3 %>% filter(age_2021 >= 25))
 stargazer(h1_model,
@@ -1308,9 +1461,6 @@ model_linear <- lm(LS_2021 ~ BMI_21, data = v3)
 # 2. Look at the coefficients
 summary(model_linear)
 
-# 3. Extract the specific slope value
-slope <- coef(model_linear)["BMI_21"]
-print(paste("The slope of the linear relationship is:", round(slope, 4)))
 
 
 
@@ -1322,34 +1472,7 @@ print(paste("The slope of the linear relationship is:", round(slope, 4)))
 
 
 
-##curvilinear scatterplot, 2021 ----
-v3F %>%
-  # Apply filters BEFORE ggplot
-  # filter(age_2021 >= 25) %>%
-  filter(!is.na(BMI_21), !is.na(LS_2021)) %>%
-  
-  ggplot(aes(x = BMI_21, y = LS_2021)) +
-  # Midnight blue points as requested
-  geom_jitter(alpha = 0.05, color = "midnightblue", width = 0.2, height = 0.2) +
-  
-  # The loess line shows the "bend" at the low end
-  geom_smooth(method = "loess", color = "steelblue1", linewidth = 1.2) + 
-  
-  # Standardize the view to see the full cleaned range
-  coord_cartesian(xlim = c(10, 70)) +
-  
-  labs(
-    title = "Hypothesis 1: BMI & Life Satisfaction, 2021 (females only)",
-    subtitle = paste0("N = ", format(nrow(plot_data_h1), big.mark = ","), 
-                      " | Substituted height & plausibility weight used\n"),
-    x = "BMI in 2021",
-    y = "Life Satisfaction in 2021"
-  ) +
-  theme_minimal()
 
-
-# install.packages("marginaleffects")
-library(marginaleffects)
 
 # Calculate the slope (penalty) at specific BMI points for each perception group
 slopes_table <- avg_slopes(model_quad_interaction, 
@@ -1404,10 +1527,6 @@ print(paste("The Realistic BMI peak for 2024 is:", round(vertex_bmi_24, 2)))
 #LS by BMI----
 library(table1)
 library(dplyr)
-##2021----
-# Using your v3 variables and filtering for complete cases
-
-
 ##2024----
 library(gtsummary)
 # 1. Create and store the table
@@ -1431,8 +1550,9 @@ LS_BMI_24 <- v3 %>%
   add_p() %>%       # <--- THIS ADDS THE P-VALUE COLUMN
   bold_labels()
 
-# 2. Display the table
 LS_BMI_24
+
+
 
 ##2021----
 library(gtsummary)
@@ -1478,6 +1598,8 @@ LS_BMI_21
 
 # The "Ultimate" Model: Quadratic terms interacted with Perception
 model_quad_interaction <- lm(LS_2021 ~ (BMI_21 + I(BMI_21^2)) * weight_perception_2021 + age_2021_imputed, data = v3F)
+
+
 
 # 1. Check the coefficients
 summary(model_quad_interaction)
@@ -1541,11 +1663,11 @@ ggplot(plot_interaction_data, aes(x = BMI_21, y = LS_2021, color = Perception)) 
 
 
 # --- THE THREE MODELS ---
-# Model 1: The Baseline (BMI only)
+### Model 1: The Baseline (BMI only)----
 model_simple <- lm(LS_2021 ~ BMI_21, data = v3F)
 summary(model_simple)
 
-# Model 2: The Life-Course History (Cumulative Risk)
+### Model 2: The Life-Course History (Cumulative Risk)----
 model_history <- lm(LS_2021 ~ heavy_history_score + BMI_21 + age_2021_imputed, data = v3F)
 summary(model_history)
 
@@ -1571,8 +1693,8 @@ ggplot(plot_data_h2, aes(x = Score_Factor, y = LS_2021, fill = Score_Factor)) +
   theme_minimal() +
   guides(fill = "none")
 
-# Model 3: The Interaction (Perception as an Effect Modifier)
-model_interaction <- lm(LS_2021 ~ BMI_21 * weight_perception_2021 + age_2021, data = v3F)
+### Model 3: The Interaction (Perception as an Effect Modifier)----
+model_interaction <- lm(LS_2021 ~ BMI_21 * weight_perception_2021 + age_2021_imputed, data = v3F)
 summary(model_interaction)
 
 library(dplyr)
@@ -1624,6 +1746,7 @@ modelsummary(models,
              )
 
 library(car)
+
 #variance inflaction factor
 vif(model_history) #heavy_history_score = 1.534275
 
