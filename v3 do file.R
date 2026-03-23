@@ -1,9 +1,9 @@
 #READY TO USE V3 KEEP UPDATING----
 library(dplyr)
 
-# v3 <- read.csv("/Users/siruizhang/Thesis/v3.csv")
+v3 <- read.csv("/Users/siruizhang/Thesis/v3.csv")
 
-v3 <- read.csv("L:/Auditdata/Students/Lexi/v3.csv")
+# v3 <- read.csv("L:/Auditdata/Students/Lexi/v3.csv")
 View(v3)
 
 
@@ -934,6 +934,38 @@ t(sample_audit) #17567
 
 ###LS by BMI categories, 2021----
 # Check the association
+v3F %>%
+  filter(!is.na(BMI_21_label), !is.na(LS_2021)) %>%
+  mutate(
+    BMI_21_label = factor(BMI_21_label,
+                          levels = c("Underweight","Healthy","Overweight",
+                                     "Obese I","Obese II","Obese III")),
+    LS_group = case_when(
+      LS_2021 <= 4 ~ "Dissatisfied (0–4)",
+      LS_2021 == 5 ~ "Neutral (5)",
+      LS_2021 >= 6 ~ "Satisfied (6–10)"
+    ),
+    LS_group = factor(LS_group,
+                      levels = c("Satisfied (6–10)", "Neutral (5)", 
+                                 "Dissatisfied (0–4)"))
+  ) %>%
+  ggplot(aes(x = BMI_21_label, fill = LS_group)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c(
+    "Satisfied (6–10)"    = "#2166ac",
+    "Neutral (5)"         = "#d1d1d1",
+    "Dissatisfied (0–4)"  = "#d6604d"
+  )) +
+  labs(
+    title = "Life satisfaction by BMI category (2021)",
+    x = "BMI category",
+    y = "% within BMI category",
+    fill = "Life satisfaction"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
 h21_results <- v3F %>%
   filter(!is.na(BMI_21_label), !is.na(LS_2021)) %>%
   group_by(BMI_21_label) %>%
@@ -999,7 +1031,7 @@ ANOVA_21 <- aov(LS_2021 ~ BMI_21_label, data = anova21)
 summary(ANOVA_21)
 
 ###LS by BMI, 2021, boxplot----
-ggplot(v3 %>% filter(!is.na(BMI_21_label), !is.na(LS_2021), sex_valid=="Female"), 
+ggplot(v3 %>% filter(!is.na(BMI_21_label), !is.na(LS_2021)), 
        aes(x = BMI_21_label, y = LS_2021, fill = BMI_21_label)) +
   geom_boxplot(alpha = 0.7, outlier.shape = NA) + # Hide outliers to keep it clean
   stat_summary(fun = mean, geom = "point", shape = 20, size = 3, color = "red") +
@@ -1196,6 +1228,7 @@ ggplot(plot_data_h1, aes(x = BMI_21, y = LS_2021)) +
     y = "Life Satisfaction in 2021"
   ) +
   theme_minimal()
+
 
 ### slope of the regression line----
 h1_model <- lm(LS_2021 ~ BMI_21, data = plot_data_h1)
@@ -1609,6 +1642,21 @@ AIC(model_interaction, model_quad_interaction)
 
 
 #BMI & LS, modified by body image----
+model_quad <- lm(LS_2021 ~ BMI_21 + I(BMI_21^2), data = v3F)
+summary(model_quad)
+
+v3F %>%
+  filter(!is.na(BMI_21)) %>%
+  mutate(bmi_group = cut(BMI_21,
+                         breaks = c(0, 18.5, 25, 30, 35, 40, Inf),
+                         labels = c("<18.5", "18.5-25", "25-30",
+                                    "30-35", "35-40", ">40"))) %>%
+  count(bmi_group)
+
+
+
+
+
 # --- DATA PREP ---
 # Filter for Females FIRST to avoid errors
 # --- DATA PREP ---
