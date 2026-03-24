@@ -1,9 +1,9 @@
 #READY TO USE V3 KEEP UPDATING----
 library(dplyr)
 
-v3 <- read.csv("/Users/siruizhang/Thesis/v3.csv")
+# v3 <- read.csv("/Users/siruizhang/Thesis/v3.csv")
 
-# v3 <- read.csv("L:/Auditdata/Students/Lexi/v3.csv")
+v3 <- read.csv("L:/Auditdata/Students/Lexi/v3.csv")
 View(v3)
 
 
@@ -907,7 +907,6 @@ ggplot(bmi_overlay_data, aes(x = BMI, fill = Year)) +
 
 
 v3F <- v3 %>% filter(sex_valid == "Female")
-
 #H1: LS & BMI global----
 ##sample audit: understanding attrition----
 sample_audit <- v3F %>%
@@ -1613,22 +1612,6 @@ LS_BMI_21 <- v3 %>%
 # 2. Display the table
 LS_BMI_21
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # The "Ultimate" Model: Quadratic terms interacted with Perception
 model_quad_interaction <- lm(LS_2021 ~ (BMI_21 + I(BMI_21^2)) * weight_perception_2021 + age_2021_imputed, data = v3F)
 
@@ -1641,190 +1624,70 @@ summary(model_quad_interaction)
 AIC(model_interaction, model_quad_interaction)
 
 
-#BMI & LS, modified by body image----
-model_quad <- lm(LS_2021 ~ BMI_21 + I(BMI_21^2), data = v3F)
-summary(model_quad)
+#E.M.: weight perception----
 
-v3F %>%
-  filter(!is.na(BMI_21)) %>%
-  mutate(bmi_group = cut(BMI_21,
-                         breaks = c(0, 18.5, 25, 30, 35, 40, Inf),
-                         labels = c("<18.5", "18.5-25", "25-30",
-                                    "30-35", "35-40", ">40"))) %>%
-  count(bmi_group)
-
-
-
-
-
-# --- DATA PREP ---
-# Filter for Females FIRST to avoid errors
-# --- DATA PREP ---
-# Filter for Females FIRST to avoid errors
-v3F <- v3 %>% filter(sex_valid == "Female")
-View(v3F)
-
-# Create the Cumulative History Score (0-4)
+#Create discordance groups
 v3F <- v3F %>%
   mutate(
-    h1 = if_else(weight_statement_a_2021 == 1, 1, 0, missing = 0),
-    h2 = if_else(weight_statement_b_2021 == 1, 1, 0, missing = 0),
-    h3 = if_else(weight_statement_c_2021 == 1, 1, 0, missing = 0),
-    h4 = if_else(weight_statement_d_2021 == 1, 1, 0, missing = 0),
-    heavy_history_score = h1 + h2 + h3 + h4,
-    # Create the factor for the interaction plot
-    weight_perception_2021 = as.factor(weight_statement_d_2021)
+    # Binary: felt heavier in adulthood yes/no
+    AWP_21 = if_else(weight_statement_d_2021 == 1, 1, 0),
+    
+    # Objectively overweight/obese (BMI >= 25)
+    OH_21 = if_else(BMI_21 >= 30, 1, 0, missing = NA_real_),
+    
+    # Four discordance groups
+    perception_BMI_group = case_when(
+      AWP_21 == 1 & OH_21 == 1 ~ "Concordant heavy",
+      AWP_21 == 0 & OH_21 == 0 ~ "Concordant normal",
+      AWP_21 == 1 & OH_21 == 0 ~ "Over-perceiver",
+      AWP_21 == 0 & OH_21 == 1 ~ "Under-perceiver",
+      TRUE ~ NA_character_
+    ),
+    perception_BMI_group = factor(perception_BMI_group,
+                                  levels = c("Concordant normal", "Concordant heavy","Over-perceiver", "Under-perceiver"))
   )
 
 
-library(ggplot2)
-library(dplyr)
+v3F %>% count(perception_BMI_group)
 
-# 1. Prepare the data: Filter and Label
-plot_interaction_data <- v3F %>%
-  filter(!is.na(BMI_21), !is.na(LS_2021), !is.na(weight_perception_2021)) %>%
-  mutate(Perception = factor(weight_perception_2021, 
-                             levels = c(1, 2, 3), 
-                             labels = c("Heavier than peers", 
-                                        "Thinner than peers", 
-                                        "No particular difference")))
-
-# 2. Generate the plot
-ggplot(plot_interaction_data, aes(x = BMI_21, y = LS_2021, color = Perception)) +
-  # This creates the 3 separate regression lines
-  geom_smooth(method = "lm", se = TRUE, linewidth = 1.2) +
-  
-  # Focus on the most common BMI range to see the slope differences clearly
-  coord_cartesian(xlim = c(15, 55), ylim = c(6.5, 8.5)) +
-  
-  scale_color_manual(values = c("firebrick", "dodgerblue3", "forestgreen")) +
-  
-  labs(
-    title = "Weight perception moderating BMI-LS 2021",
-    x = "Measured BMI (2021)",
-    y = "Predicted Life Satisfaction (0-10)",
-    color = "weight perceptions since 25 yo"
-  ) +
-  theme_minimal() +
-  theme(legend.position = "bottom")
-
-
-
-# --- THE THREE MODELS ---
-### Model 1: The Baseline (BMI only)----
-model_simple <- lm(LS_2021 ~ BMI_21, data = v3F)
-summary(model_simple)
-
-### Model 2: The Life-Course History (Cumulative Risk)----
-model_history <- lm(LS_2021 ~ heavy_history_score + BMI_21 + age_2021_imputed, data = v3F)
-summary(model_history)
-
-library(ggplot2)
-library(dplyr)
-
-# 1. Prepare the data
-# We treat the score as a factor so we can see the 5 distinct groups (0, 1, 2, 3, 4)
-plot_data_h2 <- v3F %>%
-  filter(!is.na(heavy_history_score), !is.na(LS_2021)) %>%
-  mutate(Score_Factor = as.factor(heavy_history_score))
-
-# 2. Create a "Point-Range" plot (shows the mean and confidence interval for each score)
-ggplot(plot_data_h2, aes(x = Score_Factor, y = LS_2021, fill = Score_Factor)) +
-  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar", width = 0.2, color = "black") +
-  stat_summary(fun = "mean", geom = "point", size = 4, shape = 21, color = "black") +
-  scale_fill_brewer(palette = "Reds") +
-  labs(
-    title = "Model 2: The Cumulative Life Course Effect",
-    x = "heavy history score 2021' (0 to 4)",
-    y = "Mean Life Satisfaction (2021)",
-    caption = "life stages: <13, 13-19, 19-25, and 25+") +
-  theme_minimal() +
-  guides(fill = "none")
-
-### Model 3: The Interaction (Perception as an Effect Modifier)----
-model_interaction <- lm(LS_2021 ~ BMI_21 * weight_perception_2021 + age_2021_imputed, data = v3F)
-summary(model_interaction)
-
-library(dplyr)
-
-# Summary table for the 3 groups
-summary_stats <- plot_interaction_data %>%
-  group_by(Perception) %>%
+#Mean LS by adulthood weight perception
+v3F %>%
+  filter(!is.na(weight_statement_d_2021), !is.na(LS_2021)) %>%
+  mutate(perception = factor(weight_statement_d_2021,
+                             levels = c(1, 2, 3),
+                             labels = c("Heavier than peers", "Thinner than peers", "No particular difference"))) %>%
+  group_by(perception) %>%
   summarise(
-    N = n(),
-    Mean_BMI = mean(BMI_21, na.rm = TRUE),
-    SD_BMI = sd(BMI_21, na.rm = TRUE),
-    Mean_LS = mean(LS_2021, na.rm = TRUE),
-    SD_LS = sd(LS_2021, na.rm = TRUE)
+    n = n(),
+    mean_LS = mean(LS_2021, na.rm = TRUE),
+    sd_LS = sd(LS_2021, na.rm = TRUE)
   )
 
-print(summary_stats)
+#ANOVA — does LS differ by adulthood perception?
+anova_perception <- aov(LS_2021 ~ factor(weight_statement_d_2021), data = v3F)
+summary(anova_perception)
 
-# A quick way to get the 3 individual slopes for your talk
-library(purrr)
-library(broom)
+#Linear regression — perception predicting LS
+model_perception <- lm(LS_2021 ~ factor(weight_statement_d_2021), data = v3F)
+summary(model_perception)
 
-three_slopes <- plot_interaction_data %>%
-  split(.$Perception) %>%
-  map(~lm(LS_2021 ~ BMI_21, data = .)) %>%
-  map_df(tidy, .id = "Perception") %>%
-  filter(term == "BMI_21")
+##biological vs psychological----
+# Does perception predict LS AFTER controlling for BMI?
+# If yes = psychological effect exists independently of actual weight
 
-print(three_slopes)
+model_perception_adjusted <- lm(LS_2021 ~ factor(weight_statement_d_2021) + BMI_21 + age_2021_imputed,data = v3F)
+summary(model_perception_adjusted)
 
-# install.packages("modelsummary")
-install.packages("modelsummary")
-library(modelsummary)
+#LS by discordance group 
+anova_discordance <- aov(LS_2021 ~ perception_BMI_group, data = v3F)
+summary(anova_discordance)
 
-# Create a list of your models
-models <- list(
-  "Baseline" = model_simple,
-  "Life Course" = model_history,
-  "Interaction" = model_interaction
-)
+v3F %>%
+  filter(!is.na(perception_BMI_group), !is.na(LS_2021)) %>%
+  group_by(perception_BMI_group) %>%
+  summarise(
+    n = n(),
+    mean_LS = mean(LS_2021, na.rm = TRUE),
+    sd_LS = sd(LS_2021, na.rm = TRUE)
+  )
 
-# Generate the table
-modelsummary(models, 
-             stars = TRUE, 
-             title = "Relationship between BMI and LS modified by body image, 2021",
-             notes = c(
-               "heavy_history score: cumulative score (0-4) where participants received 1 point for each life stage they reported feeling heavier than others",
-               "weight_perception_20122: participants who felt thinner than others as an adult",
-               "weight_perception_20123: participants who articipants who reported feeling no particular difference in weight from others as an adult")
-             )
-
-library(car)
-
-#variance inflaction factor
-vif(model_history) #heavy_history_score = 1.534275
-
-# Check each stage as a separate 'Yes/No'
-model_stages <- lm(LS_2021 ~ h1 + h2 + h3 + h4 + BMI_21 + age_2021, data = v3F)
-summary(model_stages) #only h4 had p<0.05
-
-# Model A: Just the physical reality (BMI)
-model_physical <- lm(LS_2021 ~ BMI_21 + age_2021, data = v3F)
-
-# Model B: Adding the Psychological History (The Cumulative Score)
-model_cumulative <- lm(LS_2021 ~ BMI_21 + age_2021 + heavy_history_score, data = v3F)
-
-# Compare them side-by-side
-library(modelsummary)
-models <- list("Physical Only" = model_physical, "Cumulative History" = model_cumulative)
-modelsummary(models, stars = TRUE, title = "Testing the Cumulative Impact of Weight History")
-
-library(car)
-vif(model_cumulative) #heavy_history_score - 1.534275
-
-
-
-# 1. Define the Simple Linear Model (The "Straight Line")
-# 1. The Simple Linear Model
-model_linear <- lm(LS_2021 ~ BMI_21 + age_2021_imputed, data = v3F)
-
-# 2. The Polynomial Model (The "Curve")
-# We add the squared term manually
-model_poly <- lm(LS_2021 ~ BMI_21 + I(BMI_21^2) + age_2021_imputed, data = v3F)
-
-# 3. THE TEST: Compare them
-anova(model_linear, model_poly)
