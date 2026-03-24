@@ -1691,3 +1691,27 @@ v3F %>%
     sd_LS = sd(LS_2021, na.rm = TRUE)
   )
 
+# write.csv(v3F, "v3F.csv", row.names = FALSE)
+
+# Check variable distributions
+v3F %>% count(weight_statement_a_2021)  # childhood perception
+v3F %>% count(weight_statement_d_2021)  # adulthood perception
+v3F %>% count(mom_physique_2021)        # parental body size - mother
+v3F %>% count(dad_physique_2021)        # parental body size - father
+
+# Check LS distribution
+summary(v3F$LS_2021)
+
+# Check BMI
+summary(v3F$BMI_21)
+
+# Check sample size after removing NAs for key variables
+v3F %>%
+  filter(
+    !is.na(weight_statement_a_2021),
+    !is.na(LS_2021),
+    !is.na(BMI_21),
+    !is.na(mom_physique_2021),
+    !is.na(dad_physique_2021)
+  ) %>%
+  nrow()
