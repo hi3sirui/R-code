@@ -1637,14 +1637,14 @@ v3F <- v3F %>%
     
     # Four discordance groups
     perception_BMI_group = case_when(
-      AWP_21 == 1 & OH_21 == 1 ~ "Concordant heavy",
+      AWP_21 == 1 & OH_21 == 1 ~ "Concordant thick",
       AWP_21 == 0 & OH_21 == 0 ~ "Concordant normal",
       AWP_21 == 1 & OH_21 == 0 ~ "Over-perceiver",
       AWP_21 == 0 & OH_21 == 1 ~ "Under-perceiver",
       TRUE ~ NA_character_
     ),
     perception_BMI_group = factor(perception_BMI_group,
-                                  levels = c("Concordant normal", "Concordant heavy","Over-perceiver", "Under-perceiver"))
+                                  levels = c("Concordant normal", "Concordant thick","Over-perceiver", "Under-perceiver"))
   )
 
 
@@ -1655,7 +1655,7 @@ v3F %>%
   filter(!is.na(weight_statement_d_2021), !is.na(LS_2021)) %>%
   mutate(perception = factor(weight_statement_d_2021,
                              levels = c(1, 2, 3),
-                             labels = c("Heavier than peers", "Thinner than peers", "No particular difference"))) %>%
+                             labels = c("thicker than peers", "Thinner than peers", "No particular difference"))) %>%
   group_by(perception) %>%
   summarise(
     n = n(),
