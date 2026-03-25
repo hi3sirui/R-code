@@ -116,8 +116,82 @@ prep %>%
 
 
 #Model 2: + current BMI----
-# Model 2: Interaction between Childhood Perception and Current BMI
-# We ensure 'Healthy' is the reference for BMI and 'No difference' for Childhood
+#'Healthy' is the reference for BMI and 'No difference' for Childhood
 model2 <- lm(LS_2021 ~ CWP_21 * BMI_21_label + age_2021_imputed, data = prep)
 
 summary(model2)
+
+##visual: subgroups error bars----
+library(sjPlot)
+library(ggplot2)
+
+# Create the interaction plot
+plot_model(model2, 
+           type = "pred", 
+           terms = c("CWP_21", "BMI_21_label"), # X-axis variable first, then the "Lines" variable
+           ci.lvl = 0.95) +                     # Add shaded 95% Confidence Intervals
+  theme_minimal() +
+  labs(
+    title = "Effect Modification: Life Satisfaction by Childhood Perception & Current BMI",
+    subtitle = "Adjusted for Age",
+    x = "Childhood Weight Perception",
+    y = "Predicted Life Satisfaction (0-10)",
+    color = "Current BMI Subgroup"
+  ) +
+  # Using a clear color palette to distinguish the lines
+  scale_color_brewer(palette = "Paired")
+
+##visuals: subgroups lm overlay----
+library(ggplot2)
+library(ggeffects) # Excellent for "PMC-style" marginal effects
+
+# 1. Calculate the predicted values (marginal means)
+predictions <- predict_response(model2, terms = c("CWP_21", "BMI_21_label"))
+
+# 2. Create the plot
+ggplot(predictions, aes(x = x, y = predicted, group = group, color = group)) +
+  geom_line(size = 1) +                # The lines for each BMI subgroup
+  geom_point(size = 3) +               # Points for each specific estimate
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2) + # 95% CIs
+  theme_minimal() +
+  labs(
+    title = "Joint Effects of Childhood Perception and Current BMI",
+    subtitle = "Adjusted for Age; inspired by Corraini et al, 2017",
+    x = "Childhood Weight Perception",
+    y = "Predicted Life Satisfaction (0-10)",
+    color = "Current BMI"
+  ) +
+  scale_color_brewer(palette = "Paired")
+##model 2: BMI dichotomized----
+library(dplyr)
+
+model2_binary <- prep %>%
+  # Filter to only include Healthy and Obese participants for a clear contrast
+  filter(BMI_21_label %in% c("Healthy", "Obese I", "Obese II", "Obese III")) %>%
+  mutate(BMI_bin = if_else(BMI_21_label == "Healthy", "Healthy", "Obese")) %>%
+  mutate(BMI_bin = factor(BMI_bin, levels = c("Healthy", "Obese"))) %>%
+  # Pass this temporary data to the linear model
+  lm(LS_2021 ~ CWP_21 * BMI_bin + age_2021_imputed, data = .)
+
+summary(model2_binary)
+
+###visuals: violin, dichotomized BMI----
+library(sjPlot)
+
+# Re-running the local model to feed into the plot
+model2_bin <- prep %>%
+  filter(BMI_21_label %in% c("Healthy", "Obese I", "Obese II", "Obese III")) %>%
+  mutate(BMI_bin = if_else(BMI_21_label == "Healthy", "Healthy", "Obese")) %>%
+  mutate(BMI_bin = factor(BMI_bin, levels = c("Healthy", "Obese"))) %>%
+  lm(LS_2021 ~ CWP_21 * BMI_bin + age_2021_imputed, data = .)
+
+# Plotting the predicted interaction
+plot_model(model2_bin, type = "pred", terms = c("CWP_21", "BMI_bin")) +
+  theme_minimal() +
+  scale_color_manual(values = c("Healthy" = "cyan4", "Obese" = "firebrick")) +
+  labs(title = "Effect Modification: Life Satisfaction By childhood weight perception & Current BMI",
+       subtitle = "Controlled for Age",
+       x = "Childhood Weight Perception",
+       y = "Predicted Life Satisfaction (0-10)",
+       color = "Current BMI, dichotomized")
+
