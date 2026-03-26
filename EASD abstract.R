@@ -114,8 +114,12 @@ prep %>%
 
 
 #Model 2: + current BMI----
-model2 <- lm(LS_2021 ~ CWP_21 * bmi_group + age_2021_imputed, 
+model2 <- lm(LS_2021 ~ CWP_21 * bmi_group + age_2021_imputed,
                    data = prep)
+summary(model2)
+
+# model2 <- lm(LS_2021 ~ CWP_21 * bmi_H_O + age_2021_imputed,
+#                    data = prep)
 summary(model2)
 
 
