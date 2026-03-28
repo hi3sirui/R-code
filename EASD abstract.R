@@ -392,22 +392,46 @@ library(ggplot2)
 plot_model(model_typology, 
            show.values = TRUE, 
            value.offset = .3,
-           title = "Current Life Satisfaction Penalty by Weight Typology",
+           title = "Current Life Satisfaction Penalty by Childhood Weight Perception-Current BMI Typology",
            axis.labels = c("Age (per year)", "Other", "Under-perceiver", 
                            "Over-perceiver", "Concordant Heavy"),
            vline.color = "red") +
   theme_minimal() +
-  labs(y = "Points Lost/Gained vs. Consistent Healthy (0-10 Scale)")
+  labs(y = "Difference in Life Satisfaction points compared against the Consistent Healthy group")
 
-# Create a plot of the predicted marginal means
+##visual: predicted LS----
 plot_model(model_typology, 
            type = "pred", 
            terms = "typology",
-           title = "Predicted Life Satisfaction Scores",
-           dot.size = 3) +
+           axis.lim = c(6.5, 7.5), # This replaces ylim() inside the function
+           title = "Predicted Life Satisfaction Scores")
+
+##confounder control----
+model_adjusted <- lm(LS_2021 ~ typology + age_2021_imputed + parental_large, 
+                     data = prep)
+summary(model_adjusted)
+
+
+###visual----
+library(sjPlot)
+library(ggplot2)
+
+# Create the plot for the fully adjusted model
+plot_model(model_adjusted, 
+           show.values = TRUE, 
+           value.offset = .4,
+           # We list labels from bottom of the summary to the top for correct mapping
+           axis.labels = c(
+             "Parents: Both Large",
+             "Age (per year)",
+             "Other (Overweight/Underweight)",
+             "Under-perceiver",
+             "Over-perceiver",
+             "Concordant Heavy"
+           ),
+           title = "Life Satisfaction Penalties: Adjusted for Parental Body Image & Age",
+           vline.color = "red") +
   theme_minimal() +
-  ylim(5.5, 7.5) + # Adjusting zoom to see the differences clearly
-  labs(x = "Nurse Typology", y = "Predicted Life Satisfaction (0-10)") +
-  coord_flip() # Flipping makes the labels much easier to read
+  labs(y = "Difference in Life Satisfaction points compared against the Consistent Healthy group")
 
 
