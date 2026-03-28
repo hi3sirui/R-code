@@ -22,9 +22,12 @@ prep <- df %>%
     
     bmi_group = factor(BMI_21_label, 
                        levels = c("Healthy", "Underweight", "Overweight", "Obese I", "Obese II", "Obese III")),
-    
-    bmi_bin = factor(if_else(BMI_21_label == "Healthy", "Healthy", "Obese"),
-                     levels = c("Healthy", "Obese")),
+    bmi_bin = case_when(
+      BMI_21_label == "Healthy" ~ "Healthy",
+      BMI_21_label %in% c("Obese I", "Obese II", "Obese III") ~ "Obese",
+      TRUE ~ NA_character_ # Overweight and Underweight become NA here
+    ),
+    bmi_bin = factor(bmi_bin, levels = c("Healthy", "Obese")),
     bmi_H_O = factor(BMI_21_label, levels = c("Healthy", "Obese I", "Obese II", "Obese III")),
     parental_large = factor(if_else(mom_physique_2021 <= 3 & dad_physique_2021 <= 3, 1, 0), levels = c(0, 1), labels = c("None", "Both")),
     
@@ -70,6 +73,8 @@ prep <- df %>%
 
 
 # Model 1: Simple Linear Regression----
+nrow(prep)
+summary(df$age_2021_imputed)
 model1 <- lm(LS_2021 ~ CWP_21 + age_2021_imputed, data = prep)
 summary(model1)
 
@@ -154,11 +159,6 @@ model2 <- lm(LS_2021 ~ CWP_21 * bmi_group + age_2021_imputed,
                    data = prep)
 summary(model2)
 
-# model2 <- lm(LS_2021 ~ CWP_21 * bmi_H_O + age_2021_imputed,
-#                    data = prep)
-summary(model2)
-
-
 ##visuals: subgroups lm overlay----
 library(ggplot2)
 library(ggeffects)
@@ -203,11 +203,11 @@ plot_model(model2_binary,
        x = "Childhood Weight Perception",
        y = "Predicted Life Satisfaction (0-10)")
 
-##Model 2': healthy v obese categories----
-# model2_HvO <- prep %>%
-#   lm(LS_2021 ~ CWP_21 * bmi_H_O + age_2021_imputed, data = .)
-# 
-# summary(model2_HvO)
+#Model 2': healthy v obese categories----
+model2_HvO <- prep %>%
+  lm(LS_2021 ~ CWP_21 * bmi_H_O + age_2021_imputed, data = .)
+
+summary(model2_HvO)
 # 
 # library(sjPlot)
 # plot_model(model2_HvO, 
@@ -233,6 +233,9 @@ model3 <- prep %>%
 
 summary(model3)
 
+model3HvO <- prep %>%
+  lm(LS_2021 ~ CWP_21 * bmi_H_O * parental_large + age_2021_imputed, data = .)
+summary(model3HvO)
 
 prep1 <- prep %>%
   mutate(
@@ -434,4 +437,13 @@ plot_model(model_adjusted,
   theme_minimal() +
   labs(y = "Difference in Life Satisfaction points compared against the Consistent Healthy group")
 
-
+##sample size, 95% CI----
+nrow(prep1)
+table(prep$typology)
+table(prep$typology, prep$parental_large)
+confint(model1)
+confint(model2)
+confint(model2_binary)
+confint(model2_HvO)
+confint(model3)
+confint(model3HvO)
