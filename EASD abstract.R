@@ -45,6 +45,8 @@ prep <- df %>%
                                            "Other"))
   )
 
+prep %>% count(bmi_group) %>% mutate(pct = n/sum(n)*100)
+
 # prep <- df %>%
 #   filter(
 #     !is.na(LS_2021), 
@@ -77,6 +79,7 @@ nrow(prep)
 summary(df$age_2021_imputed)
 model1 <- lm(LS_2021 ~ CWP_21 + age_2021_imputed, data = prep)
 summary(model1)
+
 
 ##visual, no age control----
 library(ggplot2)
@@ -203,12 +206,17 @@ plot_model(model2_binary,
        x = "Childhood Weight Perception",
        y = "Predicted Life Satisfaction (0-10)")
 
-#Model 2': healthy v obese categories----
+##Model 2': healthy v obese categories----
 model2_HvO <- prep %>%
   lm(LS_2021 ~ CWP_21 * bmi_H_O + age_2021_imputed, data = .)
 
 summary(model2_HvO)
-# 
+
+
+##model 2'': 6 bmi categories----
+model2_6cat <- lm(LS_2021 ~ CWP_21 * bmi_group + age_2021_imputed, data = prep)
+summary(model2_6cat)
+
 # library(sjPlot)
 # plot_model(model2_HvO, 
 #            type = "pred", 
@@ -226,16 +234,19 @@ summary(model2_HvO)
 
 
 #Model 3: + current BMI + parental body image----
-# Model 3: 3-way Interaction
+# Model 3: bmi_bin + parental_large----
 library(dplyr)
 model3 <- prep %>%
   lm(LS_2021 ~ CWP_21 * bmi_bin * parental_large + age_2021_imputed, data = .)
 
 summary(model3)
 
+##model 3': bmi_HvO + parental_large----
 model3HvO <- prep %>%
   lm(LS_2021 ~ CWP_21 * bmi_H_O * parental_large + age_2021_imputed, data = .)
 summary(model3HvO)
+
+
 
 prep1 <- prep %>%
   mutate(
@@ -249,8 +260,9 @@ prep1 <- prep %>%
 
 model3_pl <- prep1 %>%
   lm(LS_2021 ~ CWP_21 * bmi_bin * parent_cat + age_2021_imputed, data = .)
-
 summary(model3_pl)
+
+
 
 ##visuals: 3-way----
 library(ggeffects)
@@ -309,21 +321,21 @@ ggplot(plot_data_pl, aes(x = x, y = predicted, group = group, color = group)) +
   )
 
 
-#confounder control----
-##parental_large----
+#Model: confounder control----
+##2-factor parental body size----
 model3_controlled <- prep %>%
   lm(LS_2021 ~ CWP_21 * bmi_bin * parental_large + 
        age_2021_imputed + 
-       mom_physique_2021 + dad_physique_2021, # Controlling for raw parental physique
+       mom_physique_2021 + dad_physique_2021,
      data = .)
 
 summary(model3_controlled)
 
-##parent_cat----
+##3-factor parental body size----
 model3_controlled_pl <- prep1 %>%
   lm(LS_2021 ~ CWP_21 * bmi_bin * parent_cat + 
        age_2021_imputed + 
-       mom_physique_2021 + dad_physique_2021, # Controlling for raw parental physique
+       mom_physique_2021 + dad_physique_2021, 
      data = .)
 summary(model3_controlled_pl)
 
@@ -410,9 +422,9 @@ plot_model(model_typology,
            title = "Predicted Life Satisfaction Scores")
 
 ##confounder control----
-model_adjusted <- lm(LS_2021 ~ typology + age_2021_imputed + parental_large, 
+model_typ_adjusted <- lm(LS_2021 ~ typology + age_2021_imputed + parental_large, 
                      data = prep)
-summary(model_adjusted)
+summary(model_typ_adjusted)
 
 
 ###visual----
@@ -446,4 +458,8 @@ confint(model2)
 confint(model2_binary)
 confint(model2_HvO)
 confint(model3)
+confint(model3_controlled)
+confint(model3_controlled_pl)
 confint(model3HvO)
+confint(model2_6cat)
+confint(model_typology)
