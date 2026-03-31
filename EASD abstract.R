@@ -6,6 +6,9 @@ df <- read.csv("C:/Users/SZHA0012/Documents/R-code/v3F.csv")
 library(ggplot2)
 library(tidyverse)
 
+df %>%
+  count(!is.na(LS_2021))
+  
 #prep.df----
 prep <- df %>%
   dplyr::select(LS_2021, age_2021_imputed, weight_statement_a_2021, BMI_21, BMI_21_label, mom_physique_2021,dad_physique_2021) %>%
