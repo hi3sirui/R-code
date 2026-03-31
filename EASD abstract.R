@@ -1,13 +1,14 @@
 library(dplyr)
 
-# df <- read.csv("C:/Users/SZHA0012/Documents/R-code/v3F.csv")
-df <- read.csv("/Users/siruizhang/Downloads/Thesis/R-code/v3F.csv")
+df <- read.csv("C:/Users/SZHA0012/Documents/R-code/v3F.csv")
+# df <- read.csv("/Users/siruizhang/Downloads/Thesis/R-code/v3F.csv")
 
 library(ggplot2)
+library(tidyverse)
 
 #prep.df----
 prep <- df %>%
-  select(LS_2021, age_2021_imputed, weight_statement_a_2021, BMI_21, BMI_21_label, mom_physique_2021,dad_physique_2021) %>%
+  dplyr::select(LS_2021, age_2021_imputed, weight_statement_a_2021, BMI_21, BMI_21_label, mom_physique_2021,dad_physique_2021) %>%
   filter(
     !is.na(LS_2021), 
     !is.na(weight_statement_a_2021), 
@@ -76,9 +77,13 @@ prep %>% count(bmi_group) %>% mutate(pct = n/sum(n)*100)
 
 # Model 1: Simple Linear Regression----
 nrow(prep)
-summary(df$age_2021_imputed)
+summary(prep$age_2021_imputed)
+summary(prep$LS_2021)
+quantile(prep$LS_2021)
+quantile(prep$age_2021_imputed)
 model1 <- lm(LS_2021 ~ CWP_21 + age_2021_imputed, data = prep)
 summary(model1)
+confint(model1)
 
 
 ##visual, no age control----
@@ -395,15 +400,13 @@ print(simple_table)
 #typology model----
 # Run the linear model
 model_typology <- lm(LS_2021 ~ typology + age_2021_imputed, data = prep)
-
-# See the results
 summary(model_typology)
 
-##forest plot----
+##visuals----
+###forest plot----
 library(sjPlot)
 library(ggplot2)
-
-# Create a forest plot of the coefficients
+#Create a forest plot of the coefficients
 plot_model(model_typology, 
            show.values = TRUE, 
            value.offset = .3,
@@ -412,27 +415,60 @@ plot_model(model_typology,
                            "Over-perceiver", "Concordant Heavy"),
            vline.color = "red") +
   theme_minimal() +
-  labs(y = "Difference in Life Satisfaction points compared against the Consistent Healthy group")
+  labs(y = "Difference in Life Satisfaction compared against the Consistent Healthy group")
 
-##visual: predicted LS----
+
+###predicted LS----
 plot_model(model_typology, 
            type = "pred", 
            terms = "typology",
            axis.lim = c(6.5, 7.5), # This replaces ylim() inside the function
            title = "Predicted Life Satisfaction Scores")
 
+###grouped bar chart----
+library(sjPlot)
+library(ggplot2)
+
+# 1. Get the predicted data
+library(sjPlot)
+library(ggplot2)
+
+plot_data <- get_model_data(model_typology, type = "pred", terms = "typology")
+
+# 2. Create a clean, high-impact Bar Chart
+ggplot(plot_data, aes(x = factor(x), y = predicted, fill = factor(x))) +
+  geom_bar(stat = "identity", width = 0.7, color = "white") +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2) +
+  # Add the actual satisfaction score on top of each bar
+  geom_text(aes(label = round(predicted, 2)), vjust = -1.5, fontface = "bold") +
+  # Use a color palette that distinguishes the groups
+  scale_x_discrete(labels = c("1" = "Consistent\nHealthy", 
+                              "2" = "Concordant\nHeavy", 
+                              "3" = "Over-\nperceiver", 
+                              "4" = "Under-\nperceiver", 
+                              "5" = "Other")) +
+  scale_fill_brewer(palette = "GnBu") + 
+  coord_cartesian(ylim = c(5, 10)) + # Focus on the "difference" zone
+  theme_minimal() +
+  labs(title = "Life Satisfaction by CWP ~ BMI Typology",
+       subtitle = "Adjusted for Age and Parental Body Size",
+       x = "Typology",
+       y = "Predicted Life Satisfaction (0-10)") +
+  theme(legend.position = "none", # Hide legend since labels are on X-axis
+        axis.text.x = element_text(size = 11))
+
+
 ##confounder control----
-model_typ_adjusted <- lm(LS_2021 ~ typology + age_2021_imputed + parental_large, 
-                     data = prep)
+model_typ_adjusted <- lm(LS_2021 ~ typology + age_2021_imputed + parent_cat, data = prep1)
 summary(model_typ_adjusted)
 
 
-###visual----
+####visual----
 library(sjPlot)
 library(ggplot2)
 
 # Create the plot for the fully adjusted model
-plot_model(model_adjusted, 
+plot_model(model_typology, 
            show.values = TRUE, 
            value.offset = .4,
            # We list labels from bottom of the summary to the top for correct mapping
@@ -447,7 +483,9 @@ plot_model(model_adjusted,
            title = "Life Satisfaction Penalties: Adjusted for Parental Body Image & Age",
            vline.color = "red") +
   theme_minimal() +
-  labs(y = "Difference in Life Satisfaction points compared against the Consistent Healthy group")
+  labs(y = "Difference in Life Satisfaction compared against the Consistent Healthy group")
+
+
 
 ##sample size, 95% CI----
 nrow(prep1)
