@@ -3,9 +3,8 @@ library(dplyr)
 
 # v3 <- read.csv("/Users/siruizhang/Thesis/v3.csv")
 
-v3 <- read.csv("L:/Auditdata/Students/Lexi/v3.csv")
+v3 <- read.csv("C:/Users/SZHA0012/Documents/R-code/v3F.csv")
 View(v3)
-
 
 
 
@@ -1706,12 +1705,66 @@ summary(v3F$LS_2021)
 summary(v3F$BMI_21)
 
 # Check sample size after removing NAs for key variables
-v3F %>%
+v3 %>%
   filter(
-    !is.na(weight_statement_a_2021),
-    !is.na(LS_2021),
-    !is.na(BMI_21),
-    !is.na(mom_physique_2021),
-    !is.na(dad_physique_2021)
+      !is.na(BMI_21),
+      !is.na(LS_2024),
+      age_2021_imputed >= 25
   ) %>%
   nrow()
+
+
+
+v3_adult <- v3 %>%
+  filter(age_2021_imputed >= 25)
+
+v3_adult <- v3_adult %>%
+  mutate(in_analytic_sample = case_when(
+    !is.na(weight_statement_a_2021) &
+      !is.na(weight_statement_d_2021) &
+      !is.na(LS_2021) &
+      !is.na(LS_2024) &
+      !is.na(BMI_21) &
+      !is.na(BMI_24) &
+      !is.na(mom_physique_2021) &
+      !is.na(dad_physique_2021) &
+      !is.na(sex_valid) ~ 1,
+    TRUE ~ 0
+  ))
+sum(v3_adult$in_analytic_sample == 1)
+
+vars_to_compare <- c("BMI_21", "LS_2021", "age_2021_imputed")
+
+table_missing <- CreateTableOne(
+  vars = vars_to_compare,
+  strata = "in_analytic_sample",
+  data = v3_adult,
+  test = TRUE
+)
+
+print(table_missing, showAllLevels = TRUE, smd = TRUE)
+
+v3_adult <- v3_adult %>%
+  mutate(weight_statement_d_2021 = factor(
+    weight_statement_d_2021,
+    levels = c(3, 1, 2),
+    labels = c("No different", "Feels heavier", "Feels thinner")
+  ))
+model_bodyimage <- lm(LS_2024 ~ BMI_21 * weight_statement_d_2021 + 
+                        age_2021_imputed, 
+                      data = v3_adult)
+
+summary(model_bodyimage)
+
+
+v3_adult <- v3_adult %>%
+  mutate(body_image_typology = case_when(
+    BMI_21 >= 30 & weight_statement_d_2021 == "Feels heavier" ~ "Concordant heavy",
+    BMI_21 < 25 & weight_statement_d_2021 == "No different" ~ "Concordant healthy",
+    BMI_21 < 25 & weight_statement_d_2021 == "Feels heavier" ~ "Over-perceiver",
+    BMI_21 >= 30 & weight_statement_d_2021 == "Feels thinner" ~ "Under-perceiver",
+    BMI_21 >= 30 & weight_statement_d_2021 == "No different" ~ "Under-perceiver",
+    TRUE ~ NA_character_
+  ))
+table(v3_adult$body_image_typology, useNA = "always")
+
