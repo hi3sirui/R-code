@@ -5,6 +5,7 @@ View(ds)
 
 colnames(ds)
 
+#PREP----
 ##renaming vars----
 ds <- ds %>%
   rename(LS21 = quality_of_life_a_k,
@@ -95,12 +96,15 @@ ds <- ds %>%
     )
   )
 
+##age 25+----
 ds <- ds %>%
   filter(age_2021_imputed >= 25)
 
-View(ds)
+# Full distribution of LGBTID
+table(ds$LGBTID, useNA = "always")
 
-sum(ds$cpr_sex==1 & ds$LGBTID==1)
+# Cross tabulation with sex
+table(ds$cpr_sex, ds$LGBTID, useNA = "always")
 
 ##making height to integer ----
 v3 <- v3 %>%
