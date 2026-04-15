@@ -94,6 +94,71 @@ v3 <- v3 %>%
     )
   )
 
+sum(v3$age_2021_imputed < 25 & is.na(v3$weight_2021))
+df_25Plus <- v3 %>%
+  filter(age_2021_imputed >= 25)
+nrow(df_25Plus)
+
+sum(df_25Plus$weight_2021 != df_25Plus$w21_treated, na.rm = TRUE)
+
+df_25Plus %>%
+  filter(!is.na(weight_2021) & 
+           !is.na(w21_treated) & 
+           weight_2021 != w21_treated) %>%
+  nrow()
+
+sum(df_25Plus$age_2021_imputed >= 25 &
+      !is.na(df_25Plus$BMI_21) &
+      !is.na(df_25Plus$LS_2021) &
+      !is.na(df_25Plus$LS_2024),
+    na.rm = TRUE)
+
+# Confirmed 2021 respondents aged >=25
+n_2021_respondents <- sum(!is.na(df_25Plus$LS_2021) &
+                            df_25Plus$age_2021_imputed >= 25,
+                          na.rm = TRUE)
+n_2021_respondents
+
+# Of those, missing valid BMI
+n_missing_bmi <- sum(!is.na(df_25Plus$LS_2021) &
+                       df_25Plus$age_2021_imputed >= 25 &
+                       is.na(df_25Plus$BMI_21),
+                     na.rm = TRUE)
+n_missing_bmi
+
+# Of those with LS_2021 + valid BMI, missing LS_2024
+n_missing_LS2024 <- sum(!is.na(df_25Plus$LS_2021) &
+                          df_25Plus$age_2021_imputed >= 25 &
+                          !is.na(df_25Plus$BMI_21) &
+                          is.na(df_25Plus$LS_2024),
+                        na.rm = TRUE)
+n_missing_LS2024
+
+# Among those missing LS_2024, did they respond to 2024 at all?
+# Use any 2024-specific variable as a proxy for 2024 participation
+sum(!is.na(df_25Plus$LS_2021) &
+      df_25Plus$age_2021_imputed >= 25 &
+      !is.na(df_25Plus$BMI_21) &
+      is.na(df_25Plus$LS_2024) &
+      !is.na(df_25Plus$weight_2024),  # replace with any 2024 variable
+    na.rm = TRUE)
+
+# Verify
+n_2021_respondents - n_missing_bmi - n_missing_LS2024
+
+
+# Cleaner check with explicit boundary handling
+v3 %>%
+  mutate(age_group = case_when(
+    age_2021_imputed < 20 ~ "under 20",
+    age_2021_imputed >= 20 & age_2021_imputed < 25 ~ "20 to 24",
+    age_2021_imputed >= 25 & age_2021_imputed < 30 ~ "25 to 29",
+    age_2021_imputed >= 30 & age_2021_imputed < 35 ~ "30 to 34",
+    age_2021_imputed >= 35 ~ "35 and over",
+    TRUE ~ "missing"
+  )) %>%
+  count(age_group)
+
 
 #sanity check: missing in 2021,  2024, OR both
 # sum(is.na(v3$age_2024) | is.na(v3$cpr_alder)) == 
