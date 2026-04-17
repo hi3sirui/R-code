@@ -294,7 +294,7 @@ ds <- ds %>%
       BMI_21 >= 30 & BMI_21 < 35 ~ "Obese I",
       BMI_21 >= 35 & BMI_21 < 40 ~ "Obese II",
       BMI_21 >= 40 ~ "Obese III"
-    ), levels = c("Underweight", "Healthy", "Overweight", 
+    ), levels = c("Healthy", "Underweight", "Overweight", 
                   "Obese I", "Obese II", "Obese III")),
     
     BMI_24_label = factor(case_when(
@@ -304,7 +304,7 @@ ds <- ds %>%
       BMI_24 >= 30 & BMI_24 < 35 ~ "Obese I",
       BMI_24 >= 35 & BMI_24 < 40 ~ "Obese II",
       BMI_24 >= 40 ~ "Obese III"
-    ), levels = c("Underweight", "Healthy", "Overweight",
+    ), levels = c("Healthy", "Underweight", "Overweight",
                   "Obese I", "Obese II", "Obese III"))
   )
 ##dichotomize BMI----
@@ -367,6 +367,39 @@ ds <- ds %>%
     ),
     levels = c("no difference", "heavier", "thinner"))
   )
+#TYPOLOGY: AWP----
+ds <- ds %>%
+  mutate(
+    AWP_21 = factor(case_when(
+      WS_d21 == 1 ~ "heavier",
+      WS_d21 == 2 ~ "thinner",
+      WS_d21 == 3 ~ "no difference"
+    ), levels = c("no difference", "heavier", "thinner")),
+    
+    typology = factor(case_when(
+      obe21_bin == "non-obese" & AWP_21 == "no difference" ~ "concordant healthy",
+      obe21_bin == "obese"     & AWP_21 == "heavier"        ~ "concordant heavy",
+      obe21_bin == "non-obese" & AWP_21 == "heavier"        ~ "over-perceiver",
+      obe21_bin == "obese"     & AWP_21 == "no difference"  ~ "under-perceiver",
+      obe21_bin == "obese"     & AWP_21 == "thinner"        ~ "under-perceiver"
+    ), levels = c("concordant healthy", "concordant heavy", 
+                  "over-perceiver", "under-perceiver"))
+  )
+
+#TYPOLOGY: CWP
+ds <- ds %>%
+  mutate(
+    typology_child = factor(case_when(
+      obe21_bin == "non-obese" & CWP_21 == "no difference" ~ "concordant healthy",
+      obe21_bin == "obese"     & CWP_21 == "heavier"        ~ "concordant heavy",
+      obe21_bin == "non-obese" & CWP_21 == "heavier"        ~ "over-perceiver",
+      obe21_bin == "obese"     & CWP_21 == "no difference"  ~ "under-perceiver",
+      obe21_bin == "obese"     & CWP_21 == "thinner"        ~ "under-perceiver"
+    ), levels = c("concordant healthy", "concordant heavy",
+                  "over-perceiver", "under-perceiver"))
+  )
+
+table(ds$typology_child, useNA = "always")
 
 #LS----
 ##labels----
@@ -383,11 +416,9 @@ ds <- ds %>%
 ds <- ds %>%
   mutate(
     LS21_cat = factor(LS21_label, 
-                      levels = c("dissatisfied", "neutral", "satisfied"), 
-                      ordered = TRUE),
+                      levels = c("dissatisfied", "neutral", "satisfied"),  ordered = TRUE),
     LS24_cat = factor(LS24_label, 
-                      levels = c("dissatisfied", "neutral", "satisfied"), 
-                      ordered = TRUE)
+                      levels = c("dissatisfied", "neutral", "satisfied"), ordered = TRUE)
   )
 
 ##dichotomize LGBT----
@@ -427,7 +458,6 @@ crude_sample <- ds %>%
   )
 nrow(crude_sample)
 # write.csv(crude_sample, "crude sample.csv", row.names = FALSE)
-#***----
 
 
 
@@ -445,8 +475,6 @@ nrow(crude_sample)
 
 
 
-#HYPOTHESES----
-##H1----
 library(tidyverse)
 install.packages("MASS")
 library(MASS)
@@ -459,7 +487,7 @@ library(MASS)
 
 
 #***----
-#***FUNCTIONS----
+#FUNCTIONS----
 run_polr <- function(data, model_name = "", formula) {
   
   library(MASS)
@@ -585,7 +613,32 @@ H2_sample <- crude_sample %>%
            !is.na(parentPhys_cat))
 nrow(H2_sample) #n = 16390
 
-##obesity persistence: LS24cat ~ obe21_bin*obePersist + LS21_cat----
+##obesity severity----
+H2_severity <- H2_sample %>% run_polr(
+  "H2_severity",
+  LS24_cat ~ BMI_21_label + LS21_cat
+)
+
+H2_severity_cruSmpl <- crude_sample %>% run_polr(
+  "H2_severity_cruSmpl",
+  LS24_cat ~ BMI_21_label + LS21_cat
+)
+
+###marg predicted prob
+margPre_H2_severity <- run_margins(H2_severity, "BMI_21_label")
+
+###visual----
+plot_margins(
+  margPre_H2_severity, "BMI_21_label",
+  x_label = "BMI category (2021)",
+  title = "Predicted probability of life satisfaction (2024) by BMI category"
+)
+
+
+
+
+
+##obesity persistence, NO product term----
 H2_obePersist <- H2_sample %>% run_polr(
   "H2_obePersist",
   LS24_cat ~ obePersist + LS21_cat
@@ -644,6 +697,7 @@ margPre_H2_CWP_interaction <- avg_predictions(H2_CWP,
   as.data.frame()
 
 print(margPre_H2_CWP_interaction)
+
 ###visual----
 margPre_H2_CWP_interaction %>%
   mutate(
@@ -696,20 +750,56 @@ H2_dadPhys <- H2_sample %>% run_polr(
   LS24_cat ~ obe21_bin * dadPhys_21_large + LS21_cat
 )
 
+##typology: AWP - obe21_bin ----
+table(ds$WS_d21, useNA = "always")
+table(H2_sample$typology, useNA = "always")
+
+H2_typology_AWP <- H2_sample %>% run_polr(
+  "H2_typology_AWP",
+  LS24_cat ~ typology + LS21_cat
+)
+
+H2_typology_AWP_cruSmpl <- crude_sample %>% run_polr(
+  "H2_typology_AWP_cruSmpl",
+  LS24_cat ~ typology + LS21_cat
+)
+
+###marg predicted prob----
+margPre_typology_AWP <- run_margins(H2_typology_AWP, "typology")
+margPre_typology_AWP_cruSmpl <- run_margins(H2_typology_AWP_cruSmpl, "typology")
+
+###visual----
+plot_margins(margPre_typology_AWP, "typology",
+             x_label = "Adulthood weight status-perception typology (all data from 2021)",
+             title = "Predicted probability of life satisfaction (2024) by adulthood weight perception typology")
 
 
+##typology: CWP - obe21_bin----
+H2_typology_CWP <- H2_sample %>% run_polr(
+  "H2_typology_CWP",
+  LS24_cat ~ typology_child + LS21_cat
+)
+
+H2_typology_CWP_cruSmpl <- crude_sample %>% run_polr(
+  "H2_typology_CWP_cruSmpl",
+  LS24_cat ~ typology_child + LS21_cat
+)
 
 
+###marg predicted prob----
+margPre_typology_CWP <- run_margins(H2_typology_CWP, "typology_child")
+margPre_typology_CWP_cruSmpl <- run_margins(H2_typology_CWP_cruSmpl, "typology_child")
 
-
-
+###visual----
+plot_margins(margPre_typology_CWP, "typology_child",
+             x_label = "Childhood weight status-perception typology",
+             title = "Predicted probability of life satisfaction (2024) by childhood weight perception typology")
 
 
 
 
 #TABLE 1----
 library(gtsummary)
-##2021 panel----
 crude_sample %>%
   dplyr::select(BMI_21_label, age_2021_imputed, BMI_21, 
                 obePersist, CWP_21, parentPhys_cat) %>%
@@ -731,3 +821,17 @@ crude_sample %>%
   add_overall() %>%
   modify_spanning_header(all_stat_cols() ~ "**2021**") %>%
   bold_labels()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
