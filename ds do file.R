@@ -347,6 +347,16 @@ ds <- ds %>%
     ), levels = c("neither", "one parent", "both"))
   )
 
+ds <- ds %>%
+  mutate(
+    momPhys_21_large = factor(momPhys_21_large, 
+                              levels = c(0, 1),
+                              labels = c("not large", "large")),
+    dadPhys_21_large = factor(dadPhys_21_large,
+                              levels = c(0, 1),
+                              labels = c("not large", "large"))
+  )
+
 #Childhood weight perception 2021----
 ds <- ds %>%
   mutate(
@@ -608,8 +618,14 @@ H2_CWP <- H2_sample %>% run_polr(
   LS24_cat ~ obe21_bin * CWP_21 + LS21_cat
 )
 
-###H2_CWP marg predicted prob & visual----
+H2_CWP_cruSmpl <- crude_sample %>% run_polr(
+  "H2_CWP_cruSmpl",
+  LS24_cat ~ obe21_bin * CWP_21 + LS21_cat
+)
+
+###marg predicted prob----
 margPre_H2_CWP <- run_margins(H2_CWP, "CWP_21")
+margPre_H2_CWP_cruSmpl <- run_margins(H2_CWP_cruSmpl, "CWP_21")
 
 ###visual----
 plot_margins(
@@ -618,45 +634,39 @@ plot_margins(
   title = "Predicted probability of life satisfaction (2024) by childhood weight perception"
 )
 
+###effect of CWP by obesity status----
+margPre_H2_CWP_interaction <- avg_predictions(H2_CWP,
+                                              variables = list(
+                                                CWP_21 = c("no difference", "heavier", "thinner"),
+                                                obe21_bin = c("non-obese", "obese")
+                                              ),
+                                              type = "probs") %>%
+  as.data.frame()
 
-
-
-
-##parental body size ----
-table(H2_sample$obe21_bin, H2_sample$parentPhys_cat, useNA = "always")
-###H2_parent: LS24_cat ~ parentPhys_cat + LS21_cat----
-H2_parent <- polr(LS24_cat ~ parentPhys_cat + LS21_cat,
-                  data = H2_sample,
-                  Hess = TRUE)
-
-summary(H2_parent)
-exp(cbind(OR = coef(H2_parent), confint(H2_parent)))
-###H2_parent marg predicted prob & visual----
-pred_parent <- avg_predictions(H2_parent, 
-                               variables = "parentPhys_cat",
-                               type = "probs") %>%
-  as.data.frame() %>%
+print(margPre_H2_CWP_interaction)
+###visual----
+margPre_H2_CWP_interaction %>%
   mutate(
-    parentPhys_21_large = factor(parentPhys_cat,
-                                 levels = c("neither", "one parent", "both")),
-    group = factor(group, levels = c("dissatisfied", "neutral", "satisfied"))
-  )
-
-ggplot(pred_parent, aes(x = parentPhys_21_large, y = estimate, fill = group)) +
+    group = factor(group, levels = c("dissatisfied", "neutral", "satisfied")),
+    CWP_21 = factor(CWP_21, levels = c("no difference", "heavier", "thinner")),
+    obe21_bin = factor(obe21_bin, levels = c("non-obese", "obese"))
+  ) %>%
+  ggplot(aes(x = CWP_21, y = estimate, fill = group)) +
   geom_bar(stat = "identity", position = "stack", width = 0.5) +
   geom_text(aes(label = scales::percent(estimate, accuracy = 0.1)),
             position = position_stack(vjust = 0.5),
-            size = 3.5, color = "white", fontface = "bold") +
+            size = 3, color = "white", fontface = "bold") +
   scale_fill_manual(values = c(
     "dissatisfied" = "#C0504D",
     "neutral"      = "#9BB8D4",
     "satisfied"    = "#366092"
   )) +
   scale_y_continuous(labels = scales::percent) +
+  facet_wrap(~obe21_bin) +
   labs(
-    title = "Predicted probability of life satisfaction by parental body size",
+    title = "Predicted probability of life satisfaction by childhood weight perception and obesity status",
     subtitle = "Adjusted for baseline life satisfaction (2021)",
-    x = "Parental body size",
+    x = "Childhood weight perception (before age 13)",
     y = "Predicted probability",
     fill = "Life satisfaction (2024)"
   ) +
@@ -665,22 +675,29 @@ ggplot(pred_parent, aes(x = parentPhys_21_large, y = estimate, fill = group)) +
 
 
 
-##testing prediction accuracy----
-###brant test: all passed----
-install.packages("brant")
-library(brant)
-brant(H1_long)
-brant(H2_CWP)
-brant(H2_obePersist)
-brant(H2_parent)
 
-###model fit assessment----
-install.packages("DescTools")
-library(DescTools)
-PseudoR2(H1_long, which = c("McFadden", "Nagelkerke"))
-PseudoR2(H2_obePersist, which = c("McFadden", "Nagelkerke"))
-PseudoR2(H2_CWP, which = c("McFadden", "Nagelkerke"))
-PseudoR2(H2_parent, which = c("McFadden", "Nagelkerke"))
+##parental body size: NOT significant ----
+###H2_parent----
+H2_parent <- H2_sample %>% run_polr(
+  "H2_parent",
+  LS24_cat ~ parentPhys_cat * obe21_bin + LS21_cat
+)
+
+###marg predicted prob----
+H2_parent_margPre <- run_margins(H2_parent, "parentPhys_cat")
+
+H2_momPhys <- H2_sample %>% run_polr(
+  "H2_momPhys",
+  LS24_cat ~ obe21_bin * momPhys_21_large + LS21_cat
+)
+
+H2_dadPhys <- H2_sample %>% run_polr(
+  "H2_dadPhys",
+  LS24_cat ~ obe21_bin * dadPhys_21_large + LS21_cat
+)
+
+
+
 
 
 
@@ -694,22 +711,18 @@ PseudoR2(H2_parent, which = c("McFadden", "Nagelkerke"))
 library(gtsummary)
 ##2021 panel----
 crude_sample %>%
-  mutate(obeStat_21 = factor(obeStat_21, 
-                             levels = c(0,1),
-                             labels = c("Non-obese", "Obese"))) %>%
-  dplyr::select(obeStat_21, age_2021_imputed, BMI_21, LS21, 
+  dplyr::select(BMI_21_label, age_2021_imputed, BMI_21, 
                 obePersist, CWP_21, parentPhys_cat) %>%
   tbl_summary(
-    by = obeStat_21,
+    by = BMI_21_label,
     missing = "no",
     statistic = list(
       all_continuous() ~ "{mean} ({sd})",
       all_categorical() ~ "{n} ({p}%)"
     ),
     label = list(
-      age_2021_imputed ~ "Age (years)",
+      age_2021_imputed ~ "Age",
       BMI_21 ~ "BMI (kg/m²)",
-      LS21 ~ "Life satisfaction (0-10)",
       obePersist ~ "Obesity persistence",
       CWP_21 ~ "Childhood weight perception",
       parentPhys_cat ~ "Parental body size"
