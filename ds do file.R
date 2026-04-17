@@ -1,7 +1,8 @@
 library(dplyr)
 
-#ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+# ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+# ds <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 
 View(ds)
 
@@ -16,7 +17,7 @@ ds <- ds %>%
          H21 = height_k,
          W21 = weight_k,
          waist21 = waist_k,
-         WS_a21 = weight_statements_a_k,
+         CWP_21 = weight_statements_a_k,
          WS_b21 = weight_statements_b_k,
          WS_c21 = weight_statements_c_k,
          WS_d21 = weight_statements_d_k,
@@ -88,9 +89,13 @@ ds <- ds %>%
   filter(age_2021_imputed >= 25,
          cpr_sex==1)
 
+crude_sample %>%
+  count(eveSche_21)
 
-##WEIGHT----
-###weight rescue----
+
+
+#WEIGHT----
+##weight rescue----
 library(dplyr)
 library(gtsummary)
 
@@ -161,6 +166,10 @@ ds <- ds %>%
     TW21_flag = if_else(!is.na(treatedW21) & (treatedW21 < 40 | treatedW21 > 190), "out_of_range", TW21_flag),
     TW24_flag = if_else(!is.na(treatedW24) & (treatedW24 < 40 | treatedW24 > 190), "out_of_range", TW24_flag)
   )
+
+
+
+
 ###SMD analysis, W21----
 library(smd)
 
@@ -189,7 +198,11 @@ print(smd_w24)
 
 
 
-##HEIGHT----
+
+
+
+
+#HEIGHT----
 rescue_H21 <- function(h_input, h_anchor) {
   x <- if_else(is.na(h_input) | h_input == 0, h_anchor, h_input)
   case_when(
@@ -255,7 +268,7 @@ data.frame(
 
 
 
-##BMI----
+#BMI----
 ds <- ds %>%
   mutate(
     BMI_21 = if_else(
@@ -271,8 +284,82 @@ ds <- ds %>%
   )
 
 
+##labels----
+ds <- ds %>%
+  mutate(
+    BMI_21_label = factor(case_when(
+      BMI_21 < 18.5 ~ "Underweight",
+      BMI_21 >= 18.5 & BMI_21 < 25 ~ "Healthy",
+      BMI_21 >= 25 & BMI_21 < 30 ~ "Overweight",
+      BMI_21 >= 30 & BMI_21 < 35 ~ "Obese I",
+      BMI_21 >= 35 & BMI_21 < 40 ~ "Obese II",
+      BMI_21 >= 40 ~ "Obese III"
+    ), levels = c("Underweight", "Healthy", "Overweight", 
+                  "Obese I", "Obese II", "Obese III")),
+    
+    BMI_24_label = factor(case_when(
+      BMI_24 < 18.5 ~ "Underweight",
+      BMI_24 >= 18.5 & BMI_24 < 25 ~ "Healthy",
+      BMI_24 >= 25 & BMI_24 < 30 ~ "Overweight",
+      BMI_24 >= 30 & BMI_24 < 35 ~ "Obese I",
+      BMI_24 >= 35 & BMI_24 < 40 ~ "Obese II",
+      BMI_24 >= 40 ~ "Obese III"
+    ), levels = c("Underweight", "Healthy", "Overweight",
+                  "Obese I", "Obese II", "Obese III"))
+  )
+##dichotomize BMI----
+ds <- ds %>%
+  mutate(
+    obe21_bin = factor(case_when(
+      BMI_21 >= 30 ~ "obese",
+      BMI_21 < 30  ~ "non-obese"
+    ), levels = c("non-obese", "obese")),
+    
+    obe24_bin = factor(case_when(
+      BMI_24 >= 30 ~ "obese",
+      BMI_24 < 30  ~ "non-obese"
+    ), levels = c("non-obese", "obese")),
+    
+    ##obesity persistence----
+    obePersist = factor(case_when(
+      obe21_bin == "non-obese" & obe24_bin == "non-obese" ~ "never",
+      obe21_bin == "obese" & obe24_bin == "non-obese" ~ "2021 only",
+      obe21_bin == "non-obese" & obe24_bin == "obese"     ~ "2024 only",
+      obe21_bin == "obese" & obe24_bin == "obese"     ~ "both waves"
+    ), levels = c("never", "2021 only", "2024 only", "both waves"))
+  )
 
-##LS----
+#parental body size 2021----
+ds <- ds %>%
+  mutate(
+    momPhys_21_large = case_when(
+      momPhys_21 >= 1 & momPhys_21 <= 3 ~ 1,
+      momPhys_21 >= 4 & momPhys_21 <= 9 ~ 0
+    ),
+    dadPhys_21_large = case_when(
+      dadPhys21 >= 1 & dadPhys21 <= 3 ~ 1,
+      dadPhys21 >= 4 & dadPhys21 <= 9 ~ 0
+    ),
+    parentPhys_cat = factor(case_when(
+      momPhys_21_large == 1 & dadPhys_21_large == 1 ~ "both",
+      momPhys_21_large == 1 | dadPhys_21_large == 1 ~ "one parent",
+      momPhys_21_large == 0 & dadPhys_21_large == 0 ~ "neither"
+    ), levels = c("neither", "one parent", "both"))
+  )
+
+#Childhood weight perception 2021----
+ds <- ds %>%
+  mutate(
+    CWP_21 = factor(case_when(
+      CWP_21 == 1 ~ "heavier",
+      CWP_21 == 2 ~ "thinner",
+      CWP_21 == 3 ~ "no difference"
+    ),
+    levels = c("no difference", "heavier", "thinner"))
+  )
+
+#LS----
+##labels----
 ds <- ds %>%
   mutate(across(c(LS21, LS24), 
                 ~case_when(
@@ -282,13 +369,14 @@ ds <- ds %>%
                 ), 
                 .names = "{.col}_label"))
 
+##make factors----
 ds <- ds %>%
   mutate(
     LS21_cat = factor(LS21_label, 
-                      levels = c("dissatisfied", "neutral", "satisfied"),
+                      levels = c("dissatisfied", "neutral", "satisfied"), 
                       ordered = TRUE),
     LS24_cat = factor(LS24_label, 
-                      levels = c("dissatisfied", "neutral", "satisfied"),
+                      levels = c("dissatisfied", "neutral", "satisfied"), 
                       ordered = TRUE)
   )
 
@@ -302,77 +390,167 @@ ds <- ds %>%
     )
   )
 
-table(ds$lgbt_binary, useNA = "always")
-table(ds$eveSche_21, useNA = "always")
+#***----
+#sample dataset updates----
+# Restricted sample - complete cases on all core analytic variables
+restricted_sample <- ds %>%
+  filter(
+    !is.na(BMI_21),
+    !is.na(BMI_24),
+    !is.na(LS21),
+    !is.na(LS24),
+    !is.na(CWP_21),
+    !is.na(momPhys_21),
+    !is.na(dadPhys21),
+    !is.na(diplUd_21),
+    !is.na(obeInh_24)
+  )
+nrow(restricted_sample)
 
-#crude sample: 17174----
-sum(!is.na(ds$BMI_21) & !is.na(ds$LS21) & !is.na(ds$LS24))
+#crude sample
 crude_sample <- ds %>%
-  filter(!is.na(ds$BMI_21) & !is.na(ds$LS21) & !is.na(ds$LS24))
+  filter(
+    !is.na(BMI_21),
+    !is.na(BMI_24),
+    !is.na(LS21),
+    !is.na(LS24)
+  )
+nrow(crude_sample)
+# write.csv(crude_sample, "crude sample.csv", row.names = FALSE)
+#***----
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#HYPOTHESES----
+##H1----
+library(tidyverse)
+install.packages("MASS")
+library(MASS)
+
+
+# table(ds$lgbt_binary, useNA = "always")
+# table(ds$eveSche_21, useNA = "always")
 
 
 
 
 #***----
-#*
-#*
+#***FUNCTIONS----
+run_polr <- function(data, model_name = "", formula) {
+  
+  library(MASS)
+  library(brant)
+  library(DescTools)
+  library(tidyverse)
+  
+  model <- polr(formula, data = data, Hess = TRUE)
+  
+  cat("\n====", model_name, "====\n")
+  print(summary(model))
+  
+  cat("\nOdds Ratios:\n")
+  print(exp(cbind(OR = coef(model), confint(model))))
+  
+  cat("\nBrant Test:\n")
+  print(brant(model))
+  
+  cat("\nPseudo R-squared:\n")
+  print(PseudoR2(model, which = c("McFadden", "Nagelkerke")))
+  
+  return(invisible(model))
+}
+
+run_margins <- function(model, variable) {
+  
+  library(marginaleffects)
+  
+  pred <- avg_predictions(model,
+                          variables = variable,
+                          type = "probs") %>%
+    as.data.frame() %>%
+    mutate(
+      group = factor(group,
+                     levels = c("dissatisfied", "neutral", "satisfied"))
+    )
+  
+  print(pred)
+  return(invisible(pred))
+}
+
+plot_margins <- function(margins_data, x_var, x_label = x_var, title = "") {
+  
+  margins_data %>%
+    mutate(
+      group = factor(group, levels = c("dissatisfied", "neutral", "satisfied")),
+      x = factor(.data[[x_var]])
+    ) %>%
+    ggplot(aes(x = x, y = estimate, fill = group)) +
+    geom_bar(stat = "identity", position = "stack", width = 0.5) +
+    geom_text(aes(label = scales::percent(estimate, accuracy = 0.1)),
+              position = position_stack(vjust = 0.5),
+              size = 3.5, color = "white", fontface = "bold") +
+    scale_fill_manual(values = c(
+      "dissatisfied" = "#C0504D",
+      "neutral"      = "#9BB8D4",
+      "satisfied"    = "#366092"
+    )) +
+    scale_y_continuous(labels = scales::percent) +
+    labs(
+      title = title,
+      subtitle = "Adjusted for baseline life satisfaction (2021)",
+      x = x_label,
+      y = "Predicted probability",
+      fill = "Life satisfaction (2024)"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+}
+
 #H1----
-install.packages("MASS")
-library(tidyverse)
 library(MASS)
-
-
-H1 <- polr(LS24_cat ~ obese_21, 
-                 data = crude_sample, 
-                 Hess = TRUE)
-
-summary(H1)
-exp(cbind(OR = coef(H1), confint(H1)))
+library(tidyverse)
 
 ##H1 + LS21_cat----
-H1_long <- polr(LS24_cat ~ obeStat_21 + LS21_cat,
-                data = crude_sample,
-                Hess = TRUE)
-summary(H1_long)
-exp(cbind(OR = coef(H1_long), confint(H1_long)))
+H1_cruSmpl <- crude_sample %>% run_polr(
+  "H1_cruSmpl",
+  LS24_cat ~ obe21_bin + LS21_cat
+)
 
-H1_linear <- lm(LS24 ~ obeStat_21+ LS21,
-                data = crude_sample)
-summary(H1_linear)
-AIC(H1_linear)
+H1_reSmpl <- restricted_sample %>% run_polr(
+  "H1_reSmpl",
+  LS24_cat ~ obe21_bin + LS21_cat
+)
+
+# H1_linear <- lm(LS24 ~ obeStat_21+ LS21,
+#                 data = crude_sample)
+# summary(H1_linear)
+# AIC(H1_linear)
 
 ##marginal predictions----
-install.packages("marginaleffects")
-library(marginaleffects)
+# install.packages("marginaleffects")
 
-pred_data <- avg_predictions(H1_long, 
-                             variables = "obeStat_21",
-                             type = "probs") %>%
-  as.data.frame() %>%
-  mutate(obese = if_else(obese_21 == 0, "Non-obese", "Obese"),
-         LS_category = factor(group,
-                              levels = c("dissatisfied","neutral","satisfied")))
+margPre_H1 <- run_margins(H1_cruSmpl, "obe21_bin")
 
-ggplot(pred_data, aes(x = obese, y = estimate, fill = LS_category)) +
-  geom_bar(stat = "identity", position = "stack", width = 0.5) +
-  geom_text(aes(label = scales::percent(estimate, accuracy = 0.1)),
-            position = position_stack(vjust = 0.5),
-            size = 3.5, color = "white", fontface = "bold") +
-  scale_fill_manual(values = c(
-    "dissatisfied" = "#C0504D",
-    "neutral"      = "#9BB8D4",
-    "satisfied"    = "#366092"
-  )) +
-  scale_y_continuous(labels = scales::percent) +
-  labs(
-    title = "Predicted probability of life satisfaction by obesity status",
-    subtitle = "Adjusted for baseline life satisfaction (2021)",
-    x = "Obesity status (2021)",
-    y = "Predicted probability",
-    fill = "Life satisfaction (2024)"
-  ) +
-  theme_minimal() +
-  theme(legend.position = "bottom")
+##visual----
+plot_margins(margPre_H1, "obe21_bin",
+             x_label = "Obesity Status (2021)",
+             title = "Predicted probability of life satisfaction (2024) by obesity status"
+             )
+
 
 
 
@@ -390,185 +568,62 @@ ggplot(pred_data, aes(x = obese, y = estimate, fill = LS_category)) +
 
 
 #H2: effect modifiers----
-
 ##H2 sample size: 16390----
 H2_sample <- crude_sample %>%
   filter(!is.na(obePersist) & 
            !is.na(CWP_21) & 
            !is.na(parentPhys_cat))
+nrow(H2_sample) #n = 16390
 
+##obesity persistence: LS24cat ~ obe21_bin*obePersist + LS21_cat----
+H2_obePersist <- H2_sample %>% run_polr(
+  "H2_obePersist",
+  LS24_cat ~ obePersist + LS21_cat
+)
 
+H2_obePer_cruSmpl <- crude_sample %>% run_polr(
+  "H2_obePer_cruSmpl",
+  LS24_cat ~ obePersist + LS21_cat
+)
 
-##obesity persistence----
-ds <- ds %>%
-  mutate(
-    obeStat_21 = case_when(
-      BMI_21 >= 30 ~ 1,
-      BMI_21 < 30  ~ 0
-    ),
-    obeStat_24 = case_when(
-      BMI_24 >= 30 ~ 1,
-      BMI_24 < 30  ~ 0
-    ),
-    obePersist = case_when(
-      obeStat_21 == 0 & obeStat_24 == 0 ~ "never",
-      obeStat_21 == 1 & obeStat_24 == 0 ~ "2021 only",
-      obeStat_21 == 0 & obeStat_24 == 1 ~ "2024 only",
-      obeStat_21 == 1 & obeStat_24 == 1 ~ "both waves"
-    )
-  )
+#not significant for 2021
+H2_obePer_reSmpl <- restricted_sample %>% run_polr(
+  "H2_obePer_reSmpl",
+  LS24_cat ~ obePersist + LS21_cat
+)
 
-table(ds$obePersist, useNA = "always")
-
-ds <- ds %>%
-  mutate(
-    obePersist = factor(obePersist,
-                        levels = c("never", "2021 only", 
-                                   "2024 only", "both waves"))
-  )
-
-table(ds$obePersist, useNA = "always")
-
-
-###H2_obePersist: LS24cat ~ obePersist + LS21_cat----
-H2_obePersist <- polr(LS24_cat ~ obePersist + LS21_cat,
-                   data = H2_sample,
-                   Hess = TRUE)
-
-summary(H2_obePersist)
-exp(cbind(OR = coef(H2_obePersist), confint(H2_obePersist)))
-
-###H2_obePersist marg predicted prob----
-library(marginaleffects)
-avg_predictions(H2_obePersist, 
-                variables = "obePersist",
-                type = "probs")
-
-
+###marg predicted prob----
+margPre_H2_obePersist <- run_margins(H2_obePersist, "obePersist")
 
 ###visual----
-pred_persist <- avg_predictions(H2_obePersist, 
-                                variables = "obePersist",
-                                type = "probs") %>%
-  as.data.frame() %>%
-  mutate(
-    obePersist = factor(obePersist, 
-                        levels = c("never", "2021 only", 
-                                   "2024 only", "both waves")),
-    group = factor(group, 
-                   levels = c("dissatisfied", "neutral", "satisfied"))
-  )
-
-ggplot(pred_persist, aes(x = obePersist, y = estimate, fill = group)) +
-  geom_bar(stat = "identity", position = "stack", width = 0.5) +
-  geom_text(aes(label = scales::percent(estimate, accuracy = 0.1)),
-            position = position_stack(vjust = 0.5),
-            size = 3.5, color = "white", fontface = "bold") +
-  scale_fill_manual(values = c(
-    "dissatisfied" = "#C0504D",
-    "neutral"      = "#9BB8D4",
-    "satisfied"    = "#366092"
-  )) +
-  scale_y_continuous(labels = scales::percent) +
-  labs(
-    title = "Predicted probability of life satisfaction by obesity persistence",
-    subtitle = "Adjusted for baseline life satisfaction (2021)",
-    x = "Obesity persistence status",
-    y = "Predicted probability",
-    fill = "Life satisfaction (2024)"
-  ) +
-  theme_minimal() +
-  theme(legend.position = "bottom")
+plot_margins(margPre_H2_obePersist, "obePersist",
+             x_label = "Obesity persistence",
+             title = "Predicted probability of life satisfaction (2024) by obesity persistence")
 
 
 ##childhood weight perception ----
-table(ds$WS_a21, useNA = "always")
-ds <- ds %>%
-  mutate(
-    CWP_21 = factor(case_when(
-      WS_a21 == 1 ~ "heavier",
-      WS_a21 == 2 ~ "thinner",
-      WS_a21 == 3 ~ "no difference"
-    ),
-    levels = c("no difference", "heavier", "thinner"))
-  )
-
-table(ds$CWP_21, useNA = "always")
-
-
-
 ###H2_CWP: LS24cat ~ CWP_21 + LS21_cat----
-H2_CWP <- polr(LS24_cat ~ CWP_21 + LS21_cat,
-               data = H2_sample,
-               Hess = TRUE)
-
-summary(H2_CWP)
-exp(cbind(OR = coef(H2_CWP), confint(H2_CWP)))
+H2_CWP <- H2_sample %>% run_polr(
+  "H2_CWP",
+  LS24_cat ~ obe21_bin * CWP_21 + LS21_cat
+)
 
 ###H2_CWP marg predicted prob & visual----
-pred_CWP <- avg_predictions(H2_CWP, 
-                            variables = "CWP_21",
-                            type = "probs") %>%
-  as.data.frame() %>%
-  mutate(
-    CWP_21 = factor(CWP_21, 
-                    levels = c("no difference", "heavier", "thinner")),
-    group = factor(group,
-                   levels = c("dissatisfied", "neutral", "satisfied"))
-  )
+margPre_H2_CWP <- run_margins(H2_CWP, "CWP_21")
 
-ggplot(pred_CWP, aes(x = CWP_21, y = estimate, fill = group)) +
-  geom_bar(stat = "identity", position = "stack", width = 0.5) +
-  geom_text(aes(label = scales::percent(estimate, accuracy = 0.1)),
-            position = position_stack(vjust = 0.5),
-            size = 3.5, color = "white", fontface = "bold") +
-  scale_fill_manual(values = c(
-    "dissatisfied" = "#C0504D",
-    "neutral"      = "#9BB8D4",
-    "satisfied"    = "#366092"
-  )) +
-  scale_y_continuous(labels = scales::percent) +
-  labs(
-    title = "Predicted probability of life satisfaction by childhood weight perception",
-    subtitle = "Adjusted for baseline life satisfaction (2021)",
-    x = "Childhood weight perception (before age 13)",
-    y = "Predicted probability",
-    fill = "Life satisfaction (2024)"
-  ) +
-  theme_minimal() +
-  theme(legend.position = "bottom")
-
-
+###visual----
+plot_margins(
+  margPre_H2_CWP, "CWP_21",
+  x_label = "Childhood Weight Perception (2021)",
+  title = "Predicted probability of life satisfaction (2024) by childhood weight perception"
+)
 
 
 
 
 
 ##parental body size ----
-table(ds$momPhys_21, useNA = "always")
-table(ds$dadPhys21, useNA = "always")
-
-ds <- ds %>%
-  mutate(
-    momPhys_21_large = case_when(
-      momPhys_21 >= 1 & momPhys_21 <= 3 ~ 1,
-      momPhys_21 >= 4 & momPhys_21 <= 9 ~ 0
-    ),
-    dadPhys_21_large = case_when(
-      dadPhys21 >= 1 & dadPhys21 <= 3 ~ 1,
-      dadPhys21 >= 4 & dadPhys21 <= 9 ~ 0
-    ),
-    parentPhys_cat = case_when(
-      momPhys_21_large == 1 & dadPhys_21_large == 1 ~ "both",
-      momPhys_21_large == 1 | dadPhys_21_large == 1 ~ "one parent",
-      momPhys_21_large == 0 & dadPhys_21_large == 0 ~ "neither"
-    ),
-    parentPhys_cat = factor(parentPhys_cat,
-                            levels = c("neither", "one parent", "both"))
-  )
-
-table(ds$parentPhys_cat, useNA = "always")
-
+table(H2_sample$obe21_bin, H2_sample$parentPhys_cat, useNA = "always")
 ###H2_parent: LS24_cat ~ parentPhys_cat + LS21_cat----
 H2_parent <- polr(LS24_cat ~ parentPhys_cat + LS21_cat,
                   data = H2_sample,
@@ -663,4 +718,3 @@ crude_sample %>%
   add_overall() %>%
   modify_spanning_header(all_stat_cols() ~ "**2021**") %>%
   bold_labels()
-
