@@ -1,46 +1,30 @@
 library(dplyr)
 
-ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-# ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
-# ds <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
+nrow(ds)
+# ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+crude <- read.csv("/Users/siruizhang/Thesis/crude sample no ipnr.csv")
+nrow(crude)
 
-test <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+# Step 1: Female, age >=25, answered LS21
+step1 <- sum(!is.na(ds$LS21))
+cat("Step 1 - Answered LS21:", step1, "\n")
 
-# Step 1: Total who gave consent (answered LS 2021)
-step1_total <- nrow(test %>% filter(!is.na(quality_of_life_a_k)))
-cat("Step 1 - Total with LS 2021:", step1_total, "\n")
+# Step 2: Among those, missing valid BMI21
+step2_no_bmi <- sum(!is.na(ds$LS21) & is.na(ds$BMI_21))
+cat("Step 2 - Excluded missing BMI21:", step2_no_bmi, "\n")
 
-# Step 2: Among those, females only
-step2_female <- nrow(test %>% 
-                       filter(!is.na(quality_of_life_a_k), 
-                              cpr_sex == 1))
-cat("Step 2 - Female:", step2_female, "\n")
+# Step 3: Have both LS21 and valid BMI21, but missing LS24
+step3_no_ls24 <- sum(!is.na(ds$LS21) & !is.na(ds$BMI_21) & is.na(ds$LS24))
+cat("Step 3 - Excluded missing LS24:", step3_no_ls24, "\n")
 
-# Step 3: Among females, how many excluded for being under 25
-step3_under25 <- nrow(test %>% 
-                        filter(!is.na(quality_of_life_a_k), 
-                               cpr_sex == 1,
-                               trunc(cpr_alder) < 25))
-cat("Step 3 - Excluded under 25:", step3_under25, "\n")
+# Step 4: Sample 1
+step4_sample1 <- sum(!is.na(ds$LS21) & !is.na(ds$BMI_21) & !is.na(ds$LS24))
+cat("Step 4 - Sample 1:", step4_sample1, "\n")
 
-# Step 4: Females >= 25 with weight AND height at least once
-step4_bmi_eligible <- nrow(test %>% 
-                             filter(!is.na(quality_of_life_a_k), 
-                                    cpr_sex == 1,
-                                    trunc(cpr_alder) >= 25,
-                                    (!is.na(weight_k) | !is.na(weight_k_v2)) &
-                                      (!is.na(height_k) | !is.na(height_k_v2))))
-cat("Step 4 - Has weight and height at least once:", step4_bmi_eligible, "\n")
 
-# Steps 5-7 use your cleaned ds dataframe
-step5_valid_bmi <- sum(!is.na(ds$BMI_21))
-cat("Step 5 - Valid BMI_21 after cleaning:", step5_valid_bmi, "\n")
 
-step6_missing_ls24 <- sum(!is.na(ds$BMI_21) & is.na(ds$LS24))
-cat("Step 6 - Missing LS24 (excluded):", step6_missing_ls24, "\n")
-
-step7_sample1 <- sum(!is.na(ds$BMI_21) & !is.na(ds$LS24))
-cat("Step 7 - Sample 1:", step7_sample1, "\n")
 
 View(ds)
 
@@ -300,7 +284,7 @@ data.frame(
 
 
 
-
+View(ds)
 
 
 
@@ -521,6 +505,9 @@ library(MASS)
 
 
 
+filter(!is.na(ds$BMI_21) & !is.na(ds$LS21) & !is.na(ds$LS24))
+View(crude_sample)
+#write.csv(crude_sample, "crude sample_v2.csv", row.names = FALSE)
 
 #***----
 #FUNCTIONS----
