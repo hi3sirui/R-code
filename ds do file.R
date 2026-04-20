@@ -1,38 +1,39 @@
 library(dplyr)
 
-nrow(ds)
-# ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
-test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
-crude <- read.csv("/Users/siruizhang/Thesis/crude sample no ipnr.csv")
-nrow(crude)
+ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+# ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+crude <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
+restrictive <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 
-# Step 1: Female, age >=25, answered LS21
-step1 <- sum(!is.na(ds$LS21))
-cat("Step 1 - Answered LS21:", step1, "\n")
-
-# Step 2: Among those, missing valid BMI21
-step2_no_bmi <- sum(!is.na(ds$LS21) & is.na(ds$BMI_21))
-cat("Step 2 - Excluded missing BMI21:", step2_no_bmi, "\n")
-
-# Step 3: Have both LS21 and valid BMI21, but missing LS24
-step3_no_ls24 <- sum(!is.na(ds$LS21) & !is.na(ds$BMI_21) & is.na(ds$LS24))
-cat("Step 3 - Excluded missing LS24:", step3_no_ls24, "\n")
-
-# Step 4: Sample 1
-step4_sample1 <- sum(!is.na(ds$LS21) & !is.na(ds$BMI_21) & !is.na(ds$LS24))
-cat("Step 4 - Sample 1:", step4_sample1, "\n")
+test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
 
 
+# # Step 1: Female, age >=25, answered LS21
+# step1 <- sum(!is.na(ds$LS21))
+# cat("Step 1 - Answered LS21:", step1, "\n")
+# 
+# # Step 2: Among those, missing valid BMI21
+# step2_no_bmi <- sum(!is.na(ds$LS21) & is.na(ds$BMI_21))
+# cat("Step 2 - Excluded missing BMI21:", step2_no_bmi, "\n")
+# 
+# # Step 3: Have both LS21 and valid BMI21, but missing LS24
+# step3_no_ls24 <- sum(!is.na(ds$LS21) & !is.na(ds$BMI_21) & is.na(ds$LS24))
+# cat("Step 3 - Excluded missing LS24:", step3_no_ls24, "\n")
+# 
+# # Step 4: Sample 1
+# step4_sample1 <- sum(!is.na(ds$LS21) & !is.na(ds$BMI_21) & !is.na(ds$LS24))
+# cat("Step 4 - Sample 1:", step4_sample1, "\n")
 
 
-View(ds)
+
+
 
 #PREP----
 # wave1 <- names(ds)[5:22]
 # wave2 <- names(ds)[24:44]
 # table(rowSums(is.na(ds[, wave1])))
 # table(rowSums(is.na(ds[, wave2])))
+
 
 ds <- ds %>%
   rename(LS21 = quality_of_life_a_k,
@@ -42,10 +43,10 @@ ds <- ds %>%
          CWP_21 = weight_statements_a_k,
          WS_b21 = weight_statements_b_k,
          WS_c21 = weight_statements_c_k,
-         WS_d21 = weight_statements_d_k,
+         AWP_21 = weight_statements_d_k,
          WCT_21 = weight_change_k,
          momPhys_21 = physique_mom_k,
-         dadPhys21 = physique_dad_k,
+         dadPhys_21 = physique_dad_k,
          age_2021 = cpr_alder,
          speUd_21  = work_b_k1,
          diplUd_21 = work_b_k2,
@@ -54,29 +55,30 @@ ds <- ds %>%
          PhD = work_b_k5,
          #work: shift type
          daySche_21 = work_schedule_a_k,
-         nightSche_21 = work_schedule_b_k,
-         eveSche_21 = work_schedule_c_k,
+         eveSche_21 = work_schedule_b_k,
+         nightSche_21 = work_schedule_c_k,
          #no. of years working a shift type
          dayScheYrs_21 = day_hours_k,
-         nightScheYrs_21 = evening_hours_k,
-         eveScheYrs_21 = night_hours_k,
+         eveScheYrs_21 = evening_hours_k,
+         nightScheYrs_21 = night_hours_k,
          age_2024 = age,
          LS24 = qol,
          phyHealth_24 = phy_health_v2,
          mentHealth_24 = men_health_v2,
          W24 = weight_k_v2,
          H24 = height_k_v2,
-         WS_a24 = weight_statements_a_k_v2,
+         CWP_24 = weight_statements_a_k_v2,
+         AWP_24 = weight_statements_d_k_v2,
          WCT_24 = weight_change_k_v2,
          momPhys_24 = physique_mom_k_v2,
-         dadPhys24 = physique_dad_k_v2,
+         dadPhys_24 = physique_dad_k_v2,
          #shift frequency / wk 
-         nightFreq_24 = eve,
-         eveFreq_24 = night,
+         eveFreq_24 = eve,
+         nightFreq_24 = night,
          weekendFreq_24 = weekend,
          #no. of yrs working a shift type
-         nightScheYrs_24 = evening_hours_k_v2,
-         eveScheYrs_24 = night_hours_k_v2,
+         eveScheYrs_24 = evening_hours_k_v2,
+         nightScheYrs_24 = night_hours_k_v2,
          lgbtID = lbgt,
          famInh_24 = inheritage_icd_v2,
          obeInh_24 = inheritage_icd_v3___5
@@ -107,10 +109,11 @@ ds <- ds %>%
     )
   )
 
+
 ds <- ds %>%
   filter(age_2021_imputed >= 25,
-         cpr_sex==1)
-
+         cpr_sex==1,
+         !is.na(LS21))
 
 
 
@@ -311,21 +314,21 @@ ds <- ds %>%
       BMI_21 < 18.5 ~ "Underweight",
       BMI_21 >= 18.5 & BMI_21 < 25 ~ "Healthy",
       BMI_21 >= 25 & BMI_21 < 30 ~ "Overweight",
-      BMI_21 >= 30 & BMI_21 < 35 ~ "Obese I",
-      BMI_21 >= 35 & BMI_21 < 40 ~ "Obese II",
-      BMI_21 >= 40 ~ "Obese III"
+      BMI_21 >= 30 & BMI_21 < 35 ~ "Obesity I",
+      BMI_21 >= 35 & BMI_21 < 40 ~ "Obesity II",
+      BMI_21 >= 40 ~ "Obesity III"
     ), levels = c("Healthy", "Underweight", "Overweight", 
-                  "Obese I", "Obese II", "Obese III")),
+                  "Obesity I", "Obesity II", "Obesity III")),
     
     BMI_24_label = factor(case_when(
       BMI_24 < 18.5 ~ "Underweight",
       BMI_24 >= 18.5 & BMI_24 < 25 ~ "Healthy",
       BMI_24 >= 25 & BMI_24 < 30 ~ "Overweight",
-      BMI_24 >= 30 & BMI_24 < 35 ~ "Obese I",
-      BMI_24 >= 35 & BMI_24 < 40 ~ "Obese II",
-      BMI_24 >= 40 ~ "Obese III"
+      BMI_24 >= 30 & BMI_24 < 35 ~ "Obesity I",
+      BMI_24 >= 35 & BMI_24 < 40 ~ "Obesity II",
+      BMI_24 >= 40 ~ "Obesity III"
     ), levels = c("Healthy", "Underweight", "Overweight",
-                  "Obese I", "Obese II", "Obese III"))
+                  "Obesity I", "Obesity II", "Obesity III"))
   )
 ##dichotomize BMI----
 ds <- ds %>%
@@ -349,6 +352,7 @@ ds <- ds %>%
     ), levels = c("never", "2021 only", "2024 only", "both waves"))
   )
 
+
 #parental body size 2021----
 ds <- ds %>%
   mutate(
@@ -357,8 +361,8 @@ ds <- ds %>%
       momPhys_21 >= 4 & momPhys_21 <= 9 ~ 0
     ),
     dadPhys_21_large = case_when(
-      dadPhys21 >= 1 & dadPhys21 <= 3 ~ 1,
-      dadPhys21 >= 4 & dadPhys21 <= 9 ~ 0
+      dadPhys_21 >= 1 & dadPhys_21 <= 3 ~ 1,
+      dadPhys_21 >= 4 & dadPhys_21 <= 9 ~ 0
     ),
     parentPhys_cat = factor(case_when(
       momPhys_21_large == 1 & dadPhys_21_large == 1 ~ "both",
@@ -377,6 +381,26 @@ ds <- ds %>%
                               labels = c("not large", "large"))
   )
 
+#diploma edu----
+ds <- ds %>%
+  mutate(
+    diplUd_21 = factor(diplUd_21,
+      levels = c(0, 1),
+      labels = c("no", "yes")
+    )
+    )
+
+
+#family history of overweight----
+ds <- ds %>%
+  mutate(
+    obeInh_24 = factor(obeInh_24,
+    levels = c(0,1),
+    labels = c("no", "yes")
+  )
+  )
+  
+
 #Childhood weight perception 2021----
 ds <- ds %>%
   mutate(
@@ -387,13 +411,25 @@ ds <- ds %>%
     ),
     levels = c("no difference", "heavier", "thinner"))
   )
+
+#Adulthood weight perception in 2021----
+ds <- ds %>%
+  mutate(
+    AWP_21 = factor(case_when(
+      AWP_21 == 1 ~ "heavier",
+      AWP_21 == 2 ~ "thinner",
+      AWP_21 == 3 ~ "no difference"
+    ),
+    levels = c("no difference", "heavier", "thinner"))
+  )
+
 #TYPOLOGY: AWP----
 ds <- ds %>%
   mutate(
     AWP_21 = factor(case_when(
-      WS_d21 == 1 ~ "heavier",
-      WS_d21 == 2 ~ "thinner",
-      WS_d21 == 3 ~ "no difference"
+      AWP_21 == 1 ~ "heavier",
+      AWP_21 == 2 ~ "thinner",
+      AWP_21 == 3 ~ "no difference"
     ), levels = c("no difference", "heavier", "thinner")),
     
     typology = factor(case_when(
@@ -419,7 +455,6 @@ ds <- ds %>%
                   "over-perceiver", "under-perceiver"))
   )
 
-table(ds$typology_child, useNA = "always")
 
 #LS----
 ##labels----
@@ -451,44 +486,37 @@ ds <- ds %>%
     )
   )
 
+
 #***----
 #sample dataset updates----
-# Restricted sample - complete cases on all core analytic variables
-restricted_sample <- ds %>%
+##crude ----
+crude <- ds %>%
+  filter(
+    !is.na(BMI_21),
+    !is.na(LS21),
+    !is.na(LS24)
+  )
+nrow(crude)
+
+## Restrictive----
+restrictive <- ds %>%
   filter(
     !is.na(BMI_21),
     !is.na(BMI_24),
     !is.na(LS21),
     !is.na(LS24),
     !is.na(CWP_21),
+    !is.na(AWP_21),
     !is.na(momPhys_21),
-    !is.na(dadPhys21),
+    !is.na(dadPhys_21),
     !is.na(diplUd_21),
     !is.na(obeInh_24)
   )
-nrow(restricted_sample)
+nrow(restrictive)
 
-#crude sample
-crude_sample <- ds %>%
-  filter(
-    !is.na(BMI_21),
-    !is.na(BMI_24),
-    !is.na(LS21),
-    !is.na(LS24)
-  )
-nrow(crude_sample)
-write.csv(crude_sample, "crude sample.csv", row.names = FALSE)
-
-
-
-
-
-
-
-
-
-
-
+sum(is.na(ds$AWP_21))
+nrow(ds)
+table(ds$AWP_21, useNA = "always")
 
 
 
@@ -496,7 +524,7 @@ write.csv(crude_sample, "crude sample.csv", row.names = FALSE)
 
 
 library(tidyverse)
-install.packages("MASS")
+# install.packages("MASS")
 library(MASS)
 
 
@@ -505,9 +533,7 @@ library(MASS)
 
 
 
-filter(!is.na(ds$BMI_21) & !is.na(ds$LS21) & !is.na(ds$LS24))
-View(crude_sample)
-#write.csv(crude_sample, "crude sample_v2.csv", row.names = FALSE)
+
 
 #***----
 #FUNCTIONS----
@@ -581,18 +607,28 @@ plot_margins <- function(margins_data, x_var, x_label = x_var, title = "") {
     theme(legend.position = "bottom")
 }
 
-#H1----
+#H1: H1 + LS21_cat----
 library(MASS)
 library(tidyverse)
 
-##H1 + LS21_cat----
-H1_cruSmpl <- crude_sample %>% run_polr(
+##crude ----
+H1_crude <- crude %>% run_polr(
   "H1_cruSmpl",
   LS24_cat ~ obe21_bin + LS21_cat
 )
+# install.packages("marginaleffects")
 
-H1_reSmpl <- restricted_sample %>% run_polr(
-  "H1_reSmpl",
+margPre_H1_cruSmpl <- run_margins(H1_crude, "obe21_bin")
+
+plot_margins(margPre_H1_cruSmpl, "obe21_bin",
+             x_label = "Obesity Status (2021)",
+             title = "Predicted probability of life satisfaction (2024) by obesity status"
+             )
+
+
+##restrictive----
+H1_res <- restrictive %>% run_polr(
+  "H1_res",
   LS24_cat ~ obe21_bin + LS21_cat
 )
 
@@ -601,16 +637,10 @@ H1_reSmpl <- restricted_sample %>% run_polr(
 # summary(H1_linear)
 # AIC(H1_linear)
 
-##marginal predictions----
-# install.packages("marginaleffects")
-
-margPre_H1 <- run_margins(H1_cruSmpl, "obe21_bin")
-
-##visual----
-plot_margins(margPre_H1, "obe21_bin",
+margPred_H1_res <- run_margins(H1_res, "obe21_bin")
+plot_margins(margPred_H1_res, "obe21_bin",
              x_label = "Obesity Status (2021)",
-             title = "Predicted probability of life satisfaction (2024) by obesity status"
-             )
+             title = "Predicted probability of life satisfaction (2024) by obesity status, restrictive sample")
 
 
 
@@ -636,6 +666,9 @@ H2_sample <- crude_sample %>%
            !is.na(parentPhys_cat))
 nrow(H2_sample) #n = 16390
 write.csv(H2_sample, "H2 sample.csv", row.names = FALSE)
+##severity----
+###crude----
+
 
 ##obesity severity----
 H2_severity <- H2_sample %>% run_polr(
@@ -645,6 +678,12 @@ H2_severity <- H2_sample %>% run_polr(
 
 H2_severity_cruSmpl <- crude_sample %>% run_polr(
   "H2_severity_cruSmpl",
+  LS24_cat ~ BMI_21_label + LS21_cat
+)
+
+##restrictive sample----
+H2_severity_res <- restrictive %>% run_polr(
+  "H2_vererity_reSmpl",
   LS24_cat ~ BMI_21_label + LS21_cat
 )
 
@@ -822,9 +861,34 @@ plot_margins(margPre_typology_CWP, "typology_child",
 
 
 
-#TABLE 1----
+#TABLE 1, crude----
 library(gtsummary)
-crude_sample %>%
+crude %>%
+  dplyr::select(BMI_21_label, age_2021_imputed, BMI_21, 
+                obePersist, CWP_21, parentPhys_cat, diplUd_21, obeInh_24) %>%
+  tbl_summary(
+    by = BMI_21_label,
+    missing = "no",
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    label = list(
+      age_2021_imputed ~ "Age",
+      BMI_21 ~ "BMI (kg/m²)",
+      obePersist ~ "Obesity persistence",
+      CWP_21 ~ "Childhood weight perception",
+      parentPhys_cat ~ "Parental body size",
+      diplUd_21 ~ "Attainment of diplomuddannelse",
+      obeInh_24 ~ "Family history of overweight"
+    )
+  ) %>%
+  add_overall() %>%
+  modify_spanning_header(all_stat_cols() ~ "**2021**") %>%
+  bold_labels()
+
+#TABLE 1, restrictive----
+restrictive %>%
   dplyr::select(BMI_21_label, age_2021_imputed, BMI_21, 
                 obePersist, CWP_21, parentPhys_cat) %>%
   tbl_summary(
@@ -843,7 +907,13 @@ crude_sample %>%
     )
   ) %>%
   add_overall() %>%
-  modify_spanning_header(all_stat_cols() ~ "**2021**") %>%
+  modify_spanning_header(all_stat_cols() ~ "**2021, restrictive**") %>%
   bold_labels()
 
 
+#citation, version, & session info----
+# citation()
+# version$version.string
+# citation("")
+# packageVersion("")
+# sessionInfo()
