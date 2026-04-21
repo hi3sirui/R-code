@@ -116,7 +116,6 @@ ds <- ds %>%
          !is.na(LS21))
 
 
-
 #WEIGHT----
 ##weight rescue----
 library(dplyr)
@@ -371,6 +370,7 @@ ds <- ds %>%
     ), levels = c("neither", "one parent", "both"))
   )
 
+
 ds <- ds %>%
   mutate(
     momPhys_21_large = factor(momPhys_21_large, 
@@ -423,26 +423,8 @@ ds <- ds %>%
     levels = c("no difference", "heavier", "thinner"))
   )
 
-#TYPOLOGY: AWP----
-ds <- ds %>%
-  mutate(
-    AWP_21 = factor(case_when(
-      AWP_21 == 1 ~ "heavier",
-      AWP_21 == 2 ~ "thinner",
-      AWP_21 == 3 ~ "no difference"
-    ), levels = c("no difference", "heavier", "thinner")),
-    
-    typology = factor(case_when(
-      obe21_bin == "non-obese" & AWP_21 == "no difference" ~ "concordant healthy",
-      obe21_bin == "obese"     & AWP_21 == "heavier"        ~ "concordant heavy",
-      obe21_bin == "non-obese" & AWP_21 == "heavier"        ~ "over-perceiver",
-      obe21_bin == "obese"     & AWP_21 == "no difference"  ~ "under-perceiver",
-      obe21_bin == "obese"     & AWP_21 == "thinner"        ~ "under-perceiver"
-    ), levels = c("concordant healthy", "concordant heavy", 
-                  "over-perceiver", "under-perceiver"))
-  )
-
-#TYPOLOGY: CWP
+#Typology----
+##CWP----
 ds <- ds %>%
   mutate(
     typology_child = factor(case_when(
@@ -455,6 +437,21 @@ ds <- ds %>%
                   "over-perceiver", "under-perceiver"))
   )
 
+##AWP----
+ds <- ds %>%
+  mutate(
+    typology_adult = factor(case_when(
+      obe21_bin == "non-obese" & AWP_21 == "no difference" ~ "concordant healthy",
+      obe21_bin == "obese"     &  AWP_21 == "heavier"        ~ "concordant heavy",
+      obe21_bin == "non-obese" &  AWP_21 == "heavier"        ~ "over-perceiver",
+      obe21_bin == "obese"     &  AWP_21 == "no difference"  ~ "under-perceiver",
+      obe21_bin == "obese"     &  AWP_21 == "thinner"        ~ "under-perceiver"
+    ), levels = c("concordant healthy", "concordant heavy",
+                  "over-perceiver", "under-perceiver"))
+  )
+
+ds %>%
+  count(lgbtID)
 
 #LS----
 ##labels----
@@ -486,9 +483,10 @@ ds <- ds %>%
     )
   )
 
+ds %>%
+  count(AWP_21)
 
-#***----
-#sample dataset updates----
+#sample data set updates----
 ##crude ----
 crude <- ds %>%
   filter(
@@ -513,11 +511,6 @@ restrictive <- ds %>%
     !is.na(obeInh_24)
   )
 nrow(restrictive)
-
-sum(is.na(ds$AWP_21))
-nrow(ds)
-table(ds$AWP_21, useNA = "always")
-
 
 
 
@@ -607,6 +600,7 @@ plot_margins <- function(margins_data, x_var, x_label = x_var, title = "") {
     theme(legend.position = "bottom")
 }
 
+View(crude)
 #H1: H1 + LS21_cat----
 library(MASS)
 library(tidyverse)
