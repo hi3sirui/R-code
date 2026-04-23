@@ -1,11 +1,14 @@
 library(dplyr)
 
-ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-# ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+# ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
 crude <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 restrictive <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 
-test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+# test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+
+
 
 
 # # Step 1: Female, age >=25, answered LS21
@@ -394,10 +397,10 @@ ds <- ds %>%
 #family history of overweight----
 ds <- ds %>%
   mutate(
-    obeInh_24 = factor(obeInh_24,
-    levels = c(0,1),
-    labels = c("no", "yes")
-  )
+    obeInh_24 = factor(case_when(
+      obeInh_24 == 0 ~ "no",
+      obeInh_24 == 1 ~ "yes"
+    ), levels = c("no", "yes"))
   )
   
 
@@ -450,9 +453,6 @@ ds <- ds %>%
                   "over-perceiver", "under-perceiver"))
   )
 
-ds %>%
-  count(lgbtID)
-
 #LS----
 ##labels----
 ds <- ds %>%
@@ -483,8 +483,8 @@ ds <- ds %>%
     )
   )
 
-ds %>%
-  count(AWP_21)
+View(ds)
+
 
 #sample data set updates----
 ##crude ----
@@ -600,19 +600,19 @@ plot_margins <- function(margins_data, x_var, x_label = x_var, title = "") {
     theme(legend.position = "bottom")
 }
 
-View(crude)
+
 #H1: H1 + LS21_cat----
 library(MASS)
 library(tidyverse)
 
 ##crude ----
 H1_crude <- crude %>% run_polr(
-  "H1_cruSmpl",
+  "H1_crude",
   LS24_cat ~ obe21_bin + LS21_cat
 )
 # install.packages("marginaleffects")
 
-margPre_H1_cruSmpl <- run_margins(H1_crude, "obe21_bin")
+margPre_H1_crude <- run_margins(H1_crude, "obe21_bin")
 
 plot_margins(margPre_H1_cruSmpl, "obe21_bin",
              x_label = "Obesity Status (2021)",
@@ -665,13 +665,8 @@ write.csv(H2_sample, "H2 sample.csv", row.names = FALSE)
 
 
 ##obesity severity----
-H2_severity <- H2_sample %>% run_polr(
+H2_severity <- crude %>% run_polr(
   "H2_severity",
-  LS24_cat ~ BMI_21_label + LS21_cat
-)
-
-H2_severity_cruSmpl <- crude_sample %>% run_polr(
-  "H2_severity_cruSmpl",
   LS24_cat ~ BMI_21_label + LS21_cat
 )
 
@@ -683,6 +678,7 @@ H2_severity_res <- restrictive %>% run_polr(
 
 ###marg predicted prob
 margPre_H2_severity <- run_margins(H2_severity, "BMI_21_label")
+margPre_H2_severity_res <- run_margins(H2_severity_res, "BMI_21_label")
 
 ###visual----
 plot_margins(
@@ -691,44 +687,44 @@ plot_margins(
   title = "Predicted probability of life satisfaction (2024) by BMI category"
 )
 
+plot_margins(
+  margPre_H2_severity_res, "BMI_21_label",
+  x_label = "BMI category (2021)",
+  title = "Predicted probability of life satisfaction (2024) by BMI category, restricted sample"
+)
 
 
 
 
 ##obesity persistence, NO product term----
-H2_obePersist <- H2_sample %>% run_polr(
+H2_obePersist <- crude %>% run_polr(
   "H2_obePersist",
   LS24_cat ~ obePersist + LS21_cat
 )
 
-H2_obePer_cruSmpl <- crude_sample %>% run_polr(
-  "H2_obePer_cruSmpl",
+H2_obPersist_res <- restrictive %>% run_polr(
+  "H2_obePersist",
   LS24_cat ~ obePersist + LS21_cat
 )
 
-#not significant for 2021
-H2_obePer_reSmpl <- restricted_sample %>% run_polr(
-  "H2_obePer_reSmpl",
-  LS24_cat ~ obePersist + LS21_cat
-)
 
 ###marg predicted prob----
 margPre_H2_obePersist <- run_margins(H2_obePersist, "obePersist")
+margPre_H2_obePersist_res <- run_margins(H2_obPersist_res, "obePersist")
 
 ###visual----
 plot_margins(margPre_H2_obePersist, "obePersist",
              x_label = "Obesity persistence",
              title = "Predicted probability of life satisfaction (2024) by obesity persistence")
 
+plot_margins(margPre_H2_obePersist_res, "obePersist",
+             x_label = "Obesity persistence",
+             title = "Predicted probability of life satisfaction (2024) by obesity persistence, restricted sample")
+
 
 ##childhood weight perception ----
 ###H2_CWP: LS24cat ~ CWP_21 + LS21_cat----
-H2_CWP <- H2_sample %>% run_polr(
-  "H2_CWP",
-  LS24_cat ~ obe21_bin * CWP_21 + LS21_cat
-)
-
-H2_CWP_cruSmpl <- crude_sample %>% run_polr(
+H2_CWP <- crude %>% run_polr(
   "H2_CWP_cruSmpl",
   LS24_cat ~ obe21_bin * CWP_21 + LS21_cat
 )
@@ -859,10 +855,10 @@ plot_margins(margPre_typology_CWP, "typology_child",
 library(gtsummary)
 crude %>%
   dplyr::select(BMI_21_label, age_2021_imputed, BMI_21, 
-                obePersist, CWP_21, parentPhys_cat, diplUd_21, obeInh_24) %>%
+                obePersist, CWP_21, AWP_21, parentPhys_cat, diplUd_21, obeInh_24) %>%
   tbl_summary(
     by = BMI_21_label,
-    missing = "no",
+    missing = "ifany",
     statistic = list(
       all_continuous() ~ "{mean} ({sd})",
       all_categorical() ~ "{n} ({p}%)"
@@ -870,16 +866,22 @@ crude %>%
     label = list(
       age_2021_imputed ~ "Age",
       BMI_21 ~ "BMI (kg/m²)",
-      obePersist ~ "Obesity persistence",
+      obePersist ~ "Obesity persistence between baseline and follow-up",
       CWP_21 ~ "Childhood weight perception",
       parentPhys_cat ~ "Parental body size",
       diplUd_21 ~ "Attainment of diplomuddannelse",
-      obeInh_24 ~ "Family history of overweight"
+      obeInh_24 ~ "Family history of overweight (heredity)"
     )
   ) %>%
   add_overall() %>%
-  modify_spanning_header(all_stat_cols() ~ "**2021**") %>%
+  modify_spanning_header(all_stat_cols() ~ "**BMI categories, crude sample**") %>%
   bold_labels()
+
+table(ds$diplUd_21, useNA = "always")
+sum(!is.na(ds$diplUd_21))
+
+crude %>%
+  count(obeInh_24)
 
 #TABLE 1, restrictive----
 restrictive %>%
@@ -903,6 +905,7 @@ restrictive %>%
   add_overall() %>%
   modify_spanning_header(all_stat_cols() ~ "**2021, restrictive**") %>%
   bold_labels()
+nrow(crude)
 
 
 #citation, version, & session info----
