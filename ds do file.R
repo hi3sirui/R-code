@@ -1,12 +1,12 @@
 library(dplyr)
 
-# ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
-crude <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
-restrictive <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
+ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+# ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+# crude <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
+# restrictive <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 
-# test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+# test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
 
 
 
@@ -37,6 +37,8 @@ test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
 # table(rowSums(is.na(ds[, wave1])))
 # table(rowSums(is.na(ds[, wave2])))
 
+test %>%
+  count(weight_change_k)
 
 ds <- ds %>%
   rename(LS21 = quality_of_life_a_k,
@@ -914,3 +916,478 @@ nrow(crude)
 # citation("")
 # packageVersion("")
 # sessionInfo()
+
+#descriptive stat by covariates----
+
+# VARIABLE AUDIT: Descriptive Statistics by Response Category
+# PURPOSE:
+#   For each key analytic variable, show who answered what —
+#   and how they look on age, LS21, LS24, and BMI21/BMI24.
+#   Use this to decide how to treat each variable (recode,
+#   collapse categories, handle NAs, flag for exclusion, etc.)
+
+# OUTPUTS:
+#   - One printed table per variable
+#   - One combined CSV with all tables stacked
+
+
+library(dplyr)
+library(tidyr)
+
+## ---- OUTCOME / EXPOSURE SUMMARY FUNCTION
+# For a given grouping variable, compute n, %, and means of
+# age, LS21, LS24, BMI21, BMI24 within each response category.
+
+summarise_by_var <- function(data, var_name, label_map = NULL) {
+  
+  total_n <- nrow(data)
+  
+  data <- data %>%
+    mutate(
+      .grp = as.character(.data[[var_name]]),
+      .grp = if_else(is.na(.grp), "NA (missing)", .grp)
+    )
+  
+  if (!is.null(label_map)) {
+    data <- data %>%
+      mutate(.grp = recode(.grp, !!!label_map))
+  }
+  
+  data %>%
+    group_by(.grp) %>%
+    summarise(
+      n          = n(),
+      pct        = round(n() / total_n * 100, 1),
+      age_mean   = round(mean(age_2021_imputed, na.rm = TRUE), 1),
+      age_sd     = round(sd(age_2021_imputed,   na.rm = TRUE), 1),
+      LS21_mean  = round(mean(LS21,  na.rm = TRUE), 2),
+      LS21_sd    = round(sd(LS21,    na.rm = TRUE), 2),
+      LS24_mean  = round(mean(LS24,  na.rm = TRUE), 2),
+      LS24_sd    = round(sd(LS24,    na.rm = TRUE), 2),
+      BMI21_mean = round(mean(BMI_21, na.rm = TRUE), 1),
+      BMI21_sd   = round(sd(BMI_21,   na.rm = TRUE), 1),
+      BMI24_mean = round(mean(BMI_24, na.rm = TRUE), 1),
+      BMI24_sd   = round(sd(BMI_24,   na.rm = TRUE), 1),
+      .groups = "drop"
+    ) %>%
+    rename(response_category = .grp) %>%
+    mutate(variable = var_name, .before = 1)
+}
+
+print_audit <- function(tbl, title) {
+  cat("\n", strrep("=", 70), "\n")
+  cat(" VARIABLE:", title, "\n")
+  cat(strrep("=", 70), "\n")
+  print(as.data.frame(tbl), row.names = FALSE)
+}
+
+yn_map    <- c("0" = "No", "1" = "Yes")
+lgbt_map  <- c("1" = "Yes (LGBT+)",
+               "2" = "No",
+               "3" = "Don't know",
+               "4" = "Prefer not to say")
+###binary var----
+
+#1. diplomuddannelse
+audit_diplUd <- summarise_by_var(ds, "diplUd_21",
+                                 label_map = yn_map)
+print_audit(audit_diplUd, "Diploma education (diplUd_21)")
+
+# 2. Specialist education
+audit_speUd <- summarise_by_var(ds, "speUd_21",
+                                label_map = yn_map)
+print_audit(audit_speUd, "Specialist education (speUd_21)")
+
+# 3. Masters education
+audit_mastUd <- summarise_by_var(ds, "mastUd_21",
+                                 label_map = yn_map)
+print_audit(audit_mastUd, "Masters education (mastUd_21)")
+
+# 4. Kandidat education
+audit_kandiUd <- summarise_by_var(ds, "kandiUd_21",
+                                  label_map = yn_map)
+print_audit(audit_kandiUd, "Kandidat education (kandiUd_21)")
+
+# 5. PhD
+audit_PhD <- summarise_by_var(ds, "PhD",
+                              label_map = yn_map)
+print_audit(audit_PhD, "PhD (PhD)")
+
+# 6. LGBT identity (4-category: 1=Yes, 2=No, 3=Don't know, 4=Prefer not to say)
+lgbt_map <- c("1" = "Yes (LGBT+)", "2" = "No", "3" = "Don't know", "4" = "Prefer not to say")
+audit_lgbt <- summarise_by_var(ds, "lgbtID",
+                               label_map = lgbt_map)
+print_audit(audit_lgbt, "LGBT identity (lgbtID)")
+
+# 7. Childhood weight perception (CWP_21)
+audit_CWP <- summarise_by_var(ds, "CWP_21")
+print_audit(audit_CWP, "Childhood weight perception (CWP_21)")
+
+# 8. Mother physique (momPhys_21)
+audit_momPhys <- summarise_by_var(ds, "momPhys_21_large")
+print_audit(audit_momPhys, "Mother physique (momPhys_21_large)")
+
+# 9. Father physique (dadPhys_21)
+audit_dadPhys <- summarise_by_var(ds, "dadPhys_21_large")
+print_audit(audit_dadPhys, "Father physique (dadPhys_21_large)")
+
+# 10. Obesity inheritance flag - 2024 (obeInh_24)
+obeInh_map <- c("0" = "Not selected", "1" = "Selected (hereditary obesity)")
+audit_obeInh <- summarise_by_var(ds, "obeInh_24",
+                                 label_map = obeInh_map)
+print_audit(audit_obeInh, "Hereditary obesity (obeInh_24)")
+
+# 11. Night shift schedule (nightSche_21)
+audit_nightSche <- summarise_by_var(ds, "nightSche_21",
+                                    label_map = yn_map)
+print_audit(audit_nightSche, "Night shift work (nightSche_21)")
+
+# 12. Evening shift schedule (eveSche_21)
+audit_eveSche <- summarise_by_var(ds, "eveSche_21",
+                                  label_map = yn_map)
+print_audit(audit_eveSche, "Evening shift work (eveSche_21)")
+
+# 13. Day shift schedule (daySche_21)
+audit_daySche <- summarise_by_var(ds, "daySche_21",
+                                  label_map = yn_map)
+print_audit(audit_daySche, "Day shift work (daySche_21)")
+
+# 14. Weight change thoughts (WCT_21)
+# Typical: 1=Lost weight, 2=Same, 3=Gained weight
+audit_WCT <- summarise_by_var(ds, "WCT_21")
+print_audit(audit_WCT, "Thoughts about changing weight (WCT_21)")
+
+# 15. Weight statements b, c, d (body image components)
+audit_WSb <- summarise_by_var(ds, "WS_b21")
+print_audit(audit_WSb, "Weight statement B - 2021 (WS_b21)")
+
+audit_WSc <- summarise_by_var(ds, "WS_c21")
+print_audit(audit_WSc, "Weight statement C - 2021 (WS_c21)")
+
+audit_WSd <- summarise_by_var(ds, "AWP_21")
+print_audit(audit_WSd, "Adulthood weight perception - 2021 (AWP_21)")
+
+#16. momPhys_21_large
+audit_momPhys_21_large <- summarise_by_var(ds, "momPhys_21_large")
+print_audit(audit_momPhys_21_large, "biological mother's body size at age 40 - 2021 (momPhys_21_large")
+
+#17. dadPhys_21_large
+audit_dadPhys_21_large <- summarise_by_var(ds, "dadPhys_21_large")
+print_audit(audit_dadPhys_21_large, "biological father's body size at age 40 - 2021 (dadPhys_21_large")
+
+print_audit(audit_diplUd, "Diploma education (diplUd_21)")
+
+##continuous var---------
+# For continuous vars, we don't stratify by group.
+# Instead: quartile split + NA flag, to see if NAs cluster.
+
+cat("\n", strrep("=", 70), "\n")
+cat(" CONTINUOUS VARIABLE OVERVIEW\n")
+cat(strrep("=", 70), "\n")
+library(tidyr)
+conti_summary <- ds %>%
+  summarise(
+    across(
+      c(age_2021_imputed, LS21, LS24, BMI_21, BMI_24),
+      list(
+        n_valid = ~sum(!is.na(.)),
+        n_miss  = ~sum(is.na(.)),
+        pct_miss = ~round(mean(is.na(.)) * 100, 1),
+        mean    = ~round(mean(., na.rm = TRUE), 2),
+        sd      = ~round(sd(.,   na.rm = TRUE), 2),
+        p25     = ~round(quantile(., 0.25, na.rm = TRUE), 2),
+        median  = ~round(median(., na.rm = TRUE), 2),
+        p75     = ~round(quantile(., 0.75, na.rm = TRUE), 2),
+        min     = ~round(min(., na.rm = TRUE), 2),
+        max     = ~round(max(., na.rm = TRUE), 2)
+      ),
+      .names = "{.col}__{.fn}"
+    )
+  ) %>%
+  pivot_longer(everything(),
+               names_to = c("variable", "stat"),
+               names_sep = "__") %>%
+  pivot_wider(names_from = stat, values_from = value)
+
+print(as.data.frame(conti_summary), row.names = FALSE)
+
+if ("BMI_21_label" %in% names(ds)) {
+  audit_BMI_cat <- summarise_by_var(ds, "BMI_21_label")
+  print_audit(audit_BMI_cat, "BMI category 2021 (BMI_21_label)")
+}
+
+if ("BMI_24_label" %in% names(ds)) {
+  audit_BMI24_cat <- summarise_by_var(ds, "BMI_24_label")
+  print_audit(audit_BMI24_cat, "BMI category 2024 (BMI_24_label)")
+}
+
+# Obesity persistence variable
+if ("obePersist" %in% names(ds)) {
+  audit_obePersist <- summarise_by_var(ds, "obePersist")
+  print_audit(audit_obePersist, "Obesity persistence (obePersist)")
+}
+
+if ("LS21_cat" %in% names(ds)) {
+  audit_LS21cat <- summarise_by_var(ds, "LS21_cat")
+  print_audit(audit_LS21cat, "LS 2021 category (LS21_cat)")
+}
+if ("LS24_cat" %in% names(ds)) {
+  audit_LS24cat <- summarise_by_var(ds, "LS24_cat")
+  print_audit(audit_LS24cat, "LS 2024 category (LS24_cat)")
+}
+
+##combined results as df----
+all_audits <- bind_rows(
+  audit_diplUd,
+  audit_speUd,
+  audit_mastUd,
+  audit_kandiUd,
+  audit_PhD,
+  audit_lgbt,
+  audit_CWP,
+  audit_momPhys,
+  audit_dadPhys,
+  audit_obeInh,
+  audit_nightSche,
+  audit_eveSche,
+  audit_daySche,
+  audit_WCT,
+  audit_WSb,
+  audit_WSc,
+  audit_WSd,
+  audit_momPhys_21_large,
+  audit_dadPhys_21_large
+)
+View(all_audits)
+write.csv(all_audits, "all audits1.csv", row.names = FALSE)
+
+# write.csv(all_audits, "variable_audit_table.csv", row.names = FALSE)
+# cat("\n\nSaved: variable_audit_table.csv\n")
+
+##quick summary----
+print_var_table <- function(audit_obj, title) {
+  cat("\n", strrep("=", 70), "\n")
+  cat(" ", title, "\n")
+  cat(strrep("=", 70), "\n")
+  
+  audit_obj %>%
+    select(-variable) %>%
+    bind_rows(
+      summarise(., response_category = "Total",
+                n = sum(n), pct = sum(pct),
+                across(where(is.numeric) & !c(n, pct), ~NA))
+    ) %>%
+    print()
+}
+
+print_cont_table <- function(cont_obj) {
+  cat("\n", strrep("=", 70), "\n")
+  cat("  Continuous Variables\n")
+  cat(strrep("=", 70), "\n")
+  
+  cont_obj %>%
+    print()
+}
+
+cat("\n", strrep("=", 70), "\n")
+cat(" MISSINGNESS OVERVIEW — All Key Variables\n")
+cat(strrep("=", 70), "\n")
+
+print_var_table(
+  audit_obeInh,
+  "family hereditary overweight"
+)
+
+
+#heatmap----
+# Two plot types:
+#   1. plot_var_heatmap()  — one heatmap per variable showing
+#      mean age, LS21, LS24, BMI21, BMI24 by response category
+#   2. plot_na_comparison() — one plot showing NA group means
+#      vs overall ds means across all variables
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+#ds means ---------
+
+ds_means <- ds %>%
+  summarise(
+    Age      = round(mean(age_2021_imputed, na.rm = TRUE), 1),
+    `LS 2021`  = round(mean(LS21,  na.rm = TRUE), 2),
+    `LS 2024`  = round(mean(LS24,  na.rm = TRUE), 2),
+    `BMI 2021` = round(mean(BMI_21, na.rm = TRUE), 1),
+    `BMI 2024` = round(mean(BMI_24, na.rm = TRUE), 1)
+  ) %>%
+  pivot_longer(everything(), names_to = "outcome", values_to = "overall_mean")
+
+# Takes one audit object, produces a heatmap of scaled means
+# Rows = response categories, Columns = outcomes
+# Color = z-score within each outcome column (so units don't matter)
+
+plot_var_heatmap <- function(audit_obj, title) {
+  
+  # Remove total row, keep only response categories
+  plot_data <- audit_obj %>%
+    filter(response_category != "Total") %>%
+    select(response_category,
+           age_mean, LS21_mean, LS24_mean, BMI21_mean, BMI24_mean) %>%
+    pivot_longer(
+      cols = -response_category,
+      names_to = "outcome",
+      values_to = "mean_val"
+    ) %>%
+    mutate(outcome = recode(outcome,
+                            "age_mean"   = "Age",
+                            "LS21_mean"  = "LS 2021",
+                            "LS24_mean"  = "LS 2024",
+                            "BMI21_mean" = "BMI 2021",
+                            "BMI24_mean" = "BMI 2024"
+    )) %>%
+    # Scale within each outcome so color is comparable across different units
+    group_by(outcome) %>%
+    mutate(
+      scaled = as.numeric(scale(mean_val)),
+      label  = round(mean_val, 1)
+    ) %>%
+    ungroup() %>%
+    mutate(
+      outcome = factor(outcome,
+                       levels = c("Age", "LS 2021", "LS 2024", "BMI 2021", "BMI 2024")),
+      response_category = factor(response_category,
+                                 levels = rev(unique(response_category)))
+    )
+  
+  ggplot(plot_data, aes(x = outcome, y = response_category, fill = scaled)) +
+    geom_tile(color = "white", linewidth = 0.8) +
+    geom_text(aes(label = label), size = 3.5, fontface = "bold") +
+    scale_fill_gradient2(
+      low      = "#4575b4",
+      mid      = "#ffffbf",
+      high     = "#d73027",
+      midpoint = 0,
+      na.value = "grey90",
+      name     = "Z-score\n(within outcome)"
+    ) +
+    labs(
+      title    = title,
+      subtitle = "Cell values = raw means | Color = standardized within each outcome",
+      x        = NULL,
+      y        = NULL
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title      = element_text(face = "bold", size = 13),
+      plot.subtitle   = element_text(size = 9, color = "grey40"),
+      axis.text.x     = element_text(face = "bold"),
+      axis.text.y     = element_text(face = "bold"),
+      legend.position = "right",
+      panel.grid      = element_blank()
+    )
+}
+
+# Takes a named list of audit objects, extracts the NA row from each,
+# and plots NA group mean vs overall ds mean for each outcome
+
+plot_na_comparison <- function(audit_list) {
+  
+  # Extract NA rows from each audit object
+  na_data <- bind_rows(audit_list) %>%
+    filter(response_category == "NA (missing)") %>%
+    select(variable, age_mean, LS21_mean, LS24_mean, BMI21_mean, BMI24_mean) %>%
+    pivot_longer(
+      cols = -variable,
+      names_to = "outcome",
+      values_to = "na_mean"
+    ) %>%
+    mutate(outcome = recode(outcome,
+                            "age_mean"   = "Age",
+                            "LS21_mean"  = "LS 2021",
+                            "LS24_mean"  = "LS 2024",
+                            "BMI21_mean" = "BMI 2021",
+                            "BMI24_mean" = "BMI 2024"
+    ))
+  
+  # Join with overall means
+  plot_data <- na_data %>%
+    left_join(ds_means, by = "outcome") %>%
+    mutate(
+      diff = na_mean - overall_mean,
+      outcome = factor(outcome,
+                       levels = c("Age", "LS 2021", "LS 2024", "BMI 2021", "BMI 2024"))
+    )
+  
+  ggplot(plot_data, aes(x = variable, y = na_mean, group = outcome, color = outcome)) +
+    geom_line(linewidth = 0.8) +
+    geom_point(size = 2.5) +
+    geom_hline(data = ds_means,
+               aes(yintercept = overall_mean, color = outcome),
+               linetype = "dashed", linewidth = 0.6, alpha = 0.5) +
+    facet_wrap(~outcome, scales = "free_y", ncol = 1) +
+    labs(
+      title    = "NA group means vs overall sample means",
+      subtitle = "Solid line = NA group | Dashed line = overall mean",
+      x        = "Variable",
+      y        = "Mean value",
+      color    = "Outcome"
+    ) +
+    theme_minimal(base_size = 11) +
+    theme(
+      plot.title    = element_text(face = "bold", size = 13),
+      plot.subtitle = element_text(size = 9, color = "grey40"),
+      axis.text.x   = element_text(angle = 45, hjust = 1, size = 8),
+      legend.position = "none",
+      strip.text    = element_text(face = "bold"),
+      panel.grid.minor = element_blank()
+    )
+}
+
+##variable heatmaps----
+
+plot_var_heatmap(audit_diplUd,    "Diploma education (diplUd_21)")
+plot_var_heatmap(audit_speUd,     "Specialist education (speUd_21)")
+plot_var_heatmap(audit_mastUd,    "Masters education (mastUd_21)")
+plot_var_heatmap(audit_kandiUd,   "Kandidat education (kandiUd_21)")
+plot_var_heatmap(audit_PhD,       "PhD (PhD)")
+plot_var_heatmap(audit_nightSche, "Night shift (nightSche_21)")
+plot_var_heatmap(audit_eveSche,   "Evening shift (eveSche_21)")
+plot_var_heatmap(audit_daySche,   "Day shift (daySche_21)")
+plot_var_heatmap(audit_lgbt,      "LGBT identity (lgbtID)")
+plot_var_heatmap(audit_obeInh,    "Hereditary obesity (obeInh_24)")
+plot_var_heatmap(audit_CWP,       "Childhood weight perception (CWP_21)")
+plot_var_heatmap(audit_WCT,       "Weight change (WCT_21)")
+plot_var_heatmap(audit_WSb,       "Weight statement B (WS_b21)")
+plot_var_heatmap(audit_WSc,       "Weight statement C (WS_c21)")
+plot_var_heatmap(audit_WSd,       "Weight statement D (WS_d21)")
+plot_var_heatmap(audit_BMI_cat,   "BMI category 2021")
+plot_var_heatmap(audit_obePersist,"Obesity persistence (obePersist)")
+plot_var_heatmap(audit_LS21cat,   "LS category 2021 (LS21_cat)")
+plot_var_heatmap(audit_LS24cat,   "LS category 2024 (LS24_cat)")
+
+# --- NA comparison plot -------------------------------------
+
+audit_list <- list(
+  audit_diplUd, audit_speUd, audit_mastUd, audit_kandiUd, audit_PhD,
+  audit_nightSche, 
+  audit_eveSche, 
+  audit_daySche,
+  audit_lgbt, 
+  audit_obeInh,
+  audit_CWP, 
+  audit_WCT,
+  audit_WSb, 
+  audit_WSc, 
+  audit_WSd,
+  audit_BMI_cat, 
+  audit_obePersist,
+  audit_LS21cat, 
+  audit_LS24cat,
+  audit_momPhys_21_large,
+  audit_dadPhys_21_large
+)
+
+plot_na_comparison(audit_list)
+
+
+
