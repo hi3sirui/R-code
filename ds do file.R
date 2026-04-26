@@ -1,45 +1,15 @@
 library(dplyr)
 
-ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-# ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+# ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
 # crude <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 # restrictive <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 
-test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-# test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
-
-
-
-
-# # Step 1: Female, age >=25, answered LS21
-# step1 <- sum(!is.na(ds$LS21))
-# cat("Step 1 - Answered LS21:", step1, "\n")
-# 
-# # Step 2: Among those, missing valid BMI21
-# step2_no_bmi <- sum(!is.na(ds$LS21) & is.na(ds$BMI_21))
-# cat("Step 2 - Excluded missing BMI21:", step2_no_bmi, "\n")
-# 
-# # Step 3: Have both LS21 and valid BMI21, but missing LS24
-# step3_no_ls24 <- sum(!is.na(ds$LS21) & !is.na(ds$BMI_21) & is.na(ds$LS24))
-# cat("Step 3 - Excluded missing LS24:", step3_no_ls24, "\n")
-# 
-# # Step 4: Sample 1
-# step4_sample1 <- sum(!is.na(ds$LS21) & !is.na(ds$BMI_21) & !is.na(ds$LS24))
-# cat("Step 4 - Sample 1:", step4_sample1, "\n")
-
-
-
+# test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
 
 
 #PREP----
-# wave1 <- names(ds)[5:22]
-# wave2 <- names(ds)[24:44]
-# table(rowSums(is.na(ds[, wave1])))
-# table(rowSums(is.na(ds[, wave2])))
-
-test %>%
-  count(weight_change_k)
-
 ds <- ds %>%
   rename(LS21 = quality_of_life_a_k,
          H21 = height_k,
@@ -291,7 +261,6 @@ data.frame(
 
 
 
-View(ds)
 
 
 
@@ -484,9 +453,6 @@ ds <- ds %>%
       lgbtID %in% c(3, 4) ~ NA_real_
     )
   )
-
-View(ds)
-
 
 #sample data set updates----
 ##crude ----
@@ -851,8 +817,6 @@ plot_margins(margPre_typology_CWP, "typology_child",
              title = "Predicted probability of life satisfaction (2024) by childhood weight perception typology")
 
 
-
-
 #TABLE 1, crude----
 library(gtsummary)
 crude %>%
@@ -989,93 +953,93 @@ lgbt_map  <- c("1" = "Yes (LGBT+)",
 ###binary var----
 
 #1. diplomuddannelse
-audit_diplUd <- summarise_by_var(ds, "diplUd_21",
+audit_diplUd <- summarise_by_var(crude, "diplUd_21",
                                  label_map = yn_map)
 print_audit(audit_diplUd, "Diploma education (diplUd_21)")
 
 # 2. Specialist education
-audit_speUd <- summarise_by_var(ds, "speUd_21",
+audit_speUd <- summarise_by_var(crude, "speUd_21",
                                 label_map = yn_map)
 print_audit(audit_speUd, "Specialist education (speUd_21)")
 
 # 3. Masters education
-audit_mastUd <- summarise_by_var(ds, "mastUd_21",
+audit_mastUd <- summarise_by_var(crude, "mastUd_21",
                                  label_map = yn_map)
 print_audit(audit_mastUd, "Masters education (mastUd_21)")
 
 # 4. Kandidat education
-audit_kandiUd <- summarise_by_var(ds, "kandiUd_21",
+audit_kandiUd <- summarise_by_var(crude, "kandiUd_21",
                                   label_map = yn_map)
 print_audit(audit_kandiUd, "Kandidat education (kandiUd_21)")
 
 # 5. PhD
-audit_PhD <- summarise_by_var(ds, "PhD",
+audit_PhD <- summarise_by_var(crude, "PhD",
                               label_map = yn_map)
 print_audit(audit_PhD, "PhD (PhD)")
 
 # 6. LGBT identity (4-category: 1=Yes, 2=No, 3=Don't know, 4=Prefer not to say)
 lgbt_map <- c("1" = "Yes (LGBT+)", "2" = "No", "3" = "Don't know", "4" = "Prefer not to say")
-audit_lgbt <- summarise_by_var(ds, "lgbtID",
+audit_lgbt <- summarise_by_var(crude, "lgbtID",
                                label_map = lgbt_map)
 print_audit(audit_lgbt, "LGBT identity (lgbtID)")
 
 # 7. Childhood weight perception (CWP_21)
-audit_CWP <- summarise_by_var(ds, "CWP_21")
+audit_CWP <- summarise_by_var(crude, "CWP_21")
 print_audit(audit_CWP, "Childhood weight perception (CWP_21)")
 
 # 8. Mother physique (momPhys_21)
-audit_momPhys <- summarise_by_var(ds, "momPhys_21_large")
+audit_momPhys <- summarise_by_var(crude, "momPhys_21_large")
 print_audit(audit_momPhys, "Mother physique (momPhys_21_large)")
 
 # 9. Father physique (dadPhys_21)
-audit_dadPhys <- summarise_by_var(ds, "dadPhys_21_large")
+audit_dadPhys <- summarise_by_var(crude, "dadPhys_21_large")
 print_audit(audit_dadPhys, "Father physique (dadPhys_21_large)")
 
 # 10. Obesity inheritance flag - 2024 (obeInh_24)
 obeInh_map <- c("0" = "Not selected", "1" = "Selected (hereditary obesity)")
-audit_obeInh <- summarise_by_var(ds, "obeInh_24",
+audit_obeInh <- summarise_by_var(crude, "obeInh_24",
                                  label_map = obeInh_map)
 print_audit(audit_obeInh, "Hereditary obesity (obeInh_24)")
 
+
 # 11. Night shift schedule (nightSche_21)
-audit_nightSche <- summarise_by_var(ds, "nightSche_21",
+audit_nightSche <- summarise_by_var(crude, "nightSche_21",
                                     label_map = yn_map)
 print_audit(audit_nightSche, "Night shift work (nightSche_21)")
 
 # 12. Evening shift schedule (eveSche_21)
-audit_eveSche <- summarise_by_var(ds, "eveSche_21",
+audit_eveSche <- summarise_by_var(crude, "eveSche_21",
                                   label_map = yn_map)
 print_audit(audit_eveSche, "Evening shift work (eveSche_21)")
 
 # 13. Day shift schedule (daySche_21)
-audit_daySche <- summarise_by_var(ds, "daySche_21",
+audit_daySche <- summarise_by_var(crude, "daySche_21",
                                   label_map = yn_map)
 print_audit(audit_daySche, "Day shift work (daySche_21)")
 
 # 14. Weight change thoughts (WCT_21)
 # Typical: 1=Lost weight, 2=Same, 3=Gained weight
-audit_WCT <- summarise_by_var(ds, "WCT_21")
+audit_WCT <- summarise_by_var(crude, "WCT_21")
 print_audit(audit_WCT, "Thoughts about changing weight (WCT_21)")
 
 # 15. Weight statements b, c, d (body image components)
-audit_WSb <- summarise_by_var(ds, "WS_b21")
+audit_WSb <- summarise_by_var(crude, "WS_b21")
 print_audit(audit_WSb, "Weight statement B - 2021 (WS_b21)")
 
-audit_WSc <- summarise_by_var(ds, "WS_c21")
+audit_WSc <- summarise_by_var(crude, "WS_c21")
 print_audit(audit_WSc, "Weight statement C - 2021 (WS_c21)")
 
-audit_WSd <- summarise_by_var(ds, "AWP_21")
+audit_WSd <- summarise_by_var(crude, "AWP_21")
 print_audit(audit_WSd, "Adulthood weight perception - 2021 (AWP_21)")
 
 #16. momPhys_21_large
-audit_momPhys_21_large <- summarise_by_var(ds, "momPhys_21_large")
+audit_momPhys_21_large <- summarise_by_var(crude, "momPhys_21_large")
 print_audit(audit_momPhys_21_large, "biological mother's body size at age 40 - 2021 (momPhys_21_large")
 
 #17. dadPhys_21_large
-audit_dadPhys_21_large <- summarise_by_var(ds, "dadPhys_21_large")
+audit_dadPhys_21_large <- summarise_by_var(crude, "dadPhys_21_large")
 print_audit(audit_dadPhys_21_large, "biological father's body size at age 40 - 2021 (dadPhys_21_large")
 
-print_audit(audit_diplUd, "Diploma education (diplUd_21)")
 
 ##continuous var---------
 # For continuous vars, we don't stratify by group.
@@ -1085,7 +1049,7 @@ cat("\n", strrep("=", 70), "\n")
 cat(" CONTINUOUS VARIABLE OVERVIEW\n")
 cat(strrep("=", 70), "\n")
 library(tidyr)
-conti_summary <- ds %>%
+conti_summary <- crude %>%
   summarise(
     across(
       c(age_2021_imputed, LS21, LS24, BMI_21, BMI_24),
@@ -1111,28 +1075,29 @@ conti_summary <- ds %>%
 
 print(as.data.frame(conti_summary), row.names = FALSE)
 
-if ("BMI_21_label" %in% names(ds)) {
-  audit_BMI_cat <- summarise_by_var(ds, "BMI_21_label")
+if ("BMI_21_label" %in% names(crude)) {
+  audit_BMI_cat <- summarise_by_var(crude, "BMI_21_label")
   print_audit(audit_BMI_cat, "BMI category 2021 (BMI_21_label)")
 }
 
-if ("BMI_24_label" %in% names(ds)) {
-  audit_BMI24_cat <- summarise_by_var(ds, "BMI_24_label")
+if ("BMI_24_label" %in% names(crude)) {
+  audit_BMI24_cat <- summarise_by_var(crude, "BMI_24_label")
   print_audit(audit_BMI24_cat, "BMI category 2024 (BMI_24_label)")
 }
 
 # Obesity persistence variable
-if ("obePersist" %in% names(ds)) {
-  audit_obePersist <- summarise_by_var(ds, "obePersist")
+if ("obePersist" %in% names(crude)) {
+  audit_obePersist <- summarise_by_var(crude, "obePersist")
   print_audit(audit_obePersist, "Obesity persistence (obePersist)")
 }
 
-if ("LS21_cat" %in% names(ds)) {
-  audit_LS21cat <- summarise_by_var(ds, "LS21_cat")
+if ("LS21_cat" %in% names(crude)) {
+  audit_LS21cat <- summarise_by_var(crude, "LS21_cat")
   print_audit(audit_LS21cat, "LS 2021 category (LS21_cat)")
 }
-if ("LS24_cat" %in% names(ds)) {
-  audit_LS24cat <- summarise_by_var(ds, "LS24_cat")
+
+if ("LS24_cat" %in% names(crude)) {
+  audit_LS24cat <- summarise_by_var(crude, "LS24_cat")
   print_audit(audit_LS24cat, "LS 2024 category (LS24_cat)")
 }
 
@@ -1170,14 +1135,16 @@ print_var_table <- function(audit_obj, title) {
   cat(" ", title, "\n")
   cat(strrep("=", 70), "\n")
   
-  audit_obj %>%
-    select(-variable) %>%
-    bind_rows(
-      summarise(., response_category = "Total",
-                n = sum(n), pct = sum(pct),
-                across(where(is.numeric) & !c(n, pct), ~NA))
+  tbl <- dplyr::select(audit_obj, -variable)
+  
+  tbl %>%
+    dplyr::bind_rows(
+      tbl %>%
+        dplyr::summarise(response_category = "Total",
+                         n = sum(n), pct = sum(pct),
+                         dplyr::across(dplyr::where(is.numeric) & !c(n, pct), ~NA))
     ) %>%
-    print()
+    print(width = Inf)
 }
 
 print_cont_table <- function(cont_obj) {
@@ -1210,48 +1177,50 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 
-#ds means ---------
-
-ds_means <- ds %>%
+#crude sample means ---------
+crude_stat <- crude %>%
   summarise(
-    Age      = round(mean(age_2021_imputed, na.rm = TRUE), 1),
-    `LS 2021`  = round(mean(LS21,  na.rm = TRUE), 2),
-    `LS 2024`  = round(mean(LS24,  na.rm = TRUE), 2),
-    `BMI 2021` = round(mean(BMI_21, na.rm = TRUE), 1),
-    `BMI 2024` = round(mean(BMI_24, na.rm = TRUE), 1)
-  ) %>%
-  pivot_longer(everything(), names_to = "outcome", values_to = "overall_mean")
-
-# Takes one audit object, produces a heatmap of scaled means
-# Rows = response categories, Columns = outcomes
-# Color = z-score within each outcome column (so units don't matter)
+    age_mean   = mean(age_2021_imputed, na.rm = TRUE),
+    age_sd     = sd(age_2021_imputed,   na.rm = TRUE),
+    LS21_mean  = mean(LS21,  na.rm = TRUE),
+    LS21_sd    = sd(LS21,    na.rm = TRUE),
+    LS24_mean  = mean(LS24,  na.rm = TRUE),
+    LS24_sd    = sd(LS24,    na.rm = TRUE),
+    BMI21_mean = mean(BMI_21, na.rm = TRUE),
+    BMI21_sd   = sd(BMI_21,   na.rm = TRUE),
+    BMI24_mean = mean(BMI_24, na.rm = TRUE),
+    BMI24_sd   = sd(BMI_24,   na.rm = TRUE)
+  )
 
 plot_var_heatmap <- function(audit_obj, title) {
   
-  # Remove total row, keep only response categories
   plot_data <- audit_obj %>%
     filter(response_category != "Total") %>%
-    select(response_category,
-           age_mean, LS21_mean, LS24_mean, BMI21_mean, BMI24_mean) %>%
+    dplyr::select(response_category,
+                  age_mean, LS21_mean, LS24_mean, BMI21_mean, BMI24_mean) %>%
     pivot_longer(
       cols = -response_category,
       names_to = "outcome",
       values_to = "mean_val"
     ) %>%
-    mutate(outcome = recode(outcome,
-                            "age_mean"   = "Age",
-                            "LS21_mean"  = "LS 2021",
-                            "LS24_mean"  = "LS 2024",
-                            "BMI21_mean" = "BMI 2021",
-                            "BMI24_mean" = "BMI 2024"
-    )) %>%
-    # Scale within each outcome so color is comparable across different units
-    group_by(outcome) %>%
     mutate(
-      scaled = as.numeric(scale(mean_val)),
-      label  = round(mean_val, 1)
+      # Z-score each value against the overall ds mean and SD
+      scaled = case_when(
+        outcome == "age_mean"   ~ (mean_val - crude_stat$age_mean)   / crude_stat$age_sd,
+        outcome == "LS21_mean"  ~ (mean_val - crude_stat$LS21_mean)  / crude_stat$LS21_sd,
+        outcome == "LS24_mean"  ~ (mean_val - crude_stat$LS24_mean)  / crude_stat$LS24_sd,
+        outcome == "BMI21_mean" ~ (mean_val - crude_stat$BMI21_mean) / crude_stat$BMI21_sd,
+        outcome == "BMI24_mean" ~ (mean_val - crude_stat$BMI24_mean) / crude_stat$BMI24_sd
+      ),
+      label = round(mean_val, 1),
+      outcome = recode(outcome,
+                       "age_mean"   = "Age",
+                       "LS21_mean"  = "LS 2021",
+                       "LS24_mean"  = "LS 2024",
+                       "BMI21_mean" = "BMI 2021",
+                       "BMI24_mean" = "BMI 2024"
+      )
     ) %>%
-    ungroup() %>%
     mutate(
       outcome = factor(outcome,
                        levels = c("Age", "LS 2021", "LS 2024", "BMI 2021", "BMI 2024")),
@@ -1268,11 +1237,11 @@ plot_var_heatmap <- function(audit_obj, title) {
       high     = "#d73027",
       midpoint = 0,
       na.value = "grey90",
-      name     = "Z-score\n(within outcome)"
+      name     = "Z-score\n(vs. overall\nsample)"
     ) +
     labs(
       title    = title,
-      subtitle = "Cell values = raw means | Color = standardized within each outcome",
+      subtitle = "Cell values = raw means | Color = z-score distance from overall sample mean",
       x        = NULL,
       y        = NULL
     ) +
@@ -1287,64 +1256,8 @@ plot_var_heatmap <- function(audit_obj, title) {
     )
 }
 
-# Takes a named list of audit objects, extracts the NA row from each,
-# and plots NA group mean vs overall ds mean for each outcome
-
-plot_na_comparison <- function(audit_list) {
-  
-  # Extract NA rows from each audit object
-  na_data <- bind_rows(audit_list) %>%
-    filter(response_category == "NA (missing)") %>%
-    select(variable, age_mean, LS21_mean, LS24_mean, BMI21_mean, BMI24_mean) %>%
-    pivot_longer(
-      cols = -variable,
-      names_to = "outcome",
-      values_to = "na_mean"
-    ) %>%
-    mutate(outcome = recode(outcome,
-                            "age_mean"   = "Age",
-                            "LS21_mean"  = "LS 2021",
-                            "LS24_mean"  = "LS 2024",
-                            "BMI21_mean" = "BMI 2021",
-                            "BMI24_mean" = "BMI 2024"
-    ))
-  
-  # Join with overall means
-  plot_data <- na_data %>%
-    left_join(ds_means, by = "outcome") %>%
-    mutate(
-      diff = na_mean - overall_mean,
-      outcome = factor(outcome,
-                       levels = c("Age", "LS 2021", "LS 2024", "BMI 2021", "BMI 2024"))
-    )
-  
-  ggplot(plot_data, aes(x = variable, y = na_mean, group = outcome, color = outcome)) +
-    geom_line(linewidth = 0.8) +
-    geom_point(size = 2.5) +
-    geom_hline(data = ds_means,
-               aes(yintercept = overall_mean, color = outcome),
-               linetype = "dashed", linewidth = 0.6, alpha = 0.5) +
-    facet_wrap(~outcome, scales = "free_y", ncol = 1) +
-    labs(
-      title    = "NA group means vs overall sample means",
-      subtitle = "Solid line = NA group | Dashed line = overall mean",
-      x        = "Variable",
-      y        = "Mean value",
-      color    = "Outcome"
-    ) +
-    theme_minimal(base_size = 11) +
-    theme(
-      plot.title    = element_text(face = "bold", size = 13),
-      plot.subtitle = element_text(size = 9, color = "grey40"),
-      axis.text.x   = element_text(angle = 45, hjust = 1, size = 8),
-      legend.position = "none",
-      strip.text    = element_text(face = "bold"),
-      panel.grid.minor = element_blank()
-    )
-}
 
 ##variable heatmaps----
-
 plot_var_heatmap(audit_diplUd,    "Diploma education (diplUd_21)")
 plot_var_heatmap(audit_speUd,     "Specialist education (speUd_21)")
 plot_var_heatmap(audit_mastUd,    "Masters education (mastUd_21)")
@@ -1365,10 +1278,13 @@ plot_var_heatmap(audit_obePersist,"Obesity persistence (obePersist)")
 plot_var_heatmap(audit_LS21cat,   "LS category 2021 (LS21_cat)")
 plot_var_heatmap(audit_LS24cat,   "LS category 2024 (LS24_cat)")
 
-# --- NA comparison plot -------------------------------------
-
+#NA comparison plot -----
 audit_list <- list(
-  audit_diplUd, audit_speUd, audit_mastUd, audit_kandiUd, audit_PhD,
+  audit_diplUd, 
+  audit_speUd, 
+  audit_mastUd, 
+  audit_kandiUd, 
+  audit_PhD,
   audit_nightSche, 
   audit_eveSche, 
   audit_daySche,
@@ -1387,10 +1303,75 @@ audit_list <- list(
   audit_dadPhys_21_large
 )
 
-plot_na_comparison(audit_list)
+# Takes a named list of audit objects, extracts the NA row from each,
+# and plots NA group mean vs overall ds mean for each outcome
+crude_stat_long <- crude_stat %>%
+  pivot_longer(
+    cols = ends_with("_mean"),
+    names_to = "outcome",
+    values_to = "overall_mean"
+  ) %>%
+  dplyr::select(outcome, overall_mean) %>%
+  mutate(outcome = recode(outcome,
+                          "age_mean"   = "Age",
+                          "LS21_mean"  = "LS 2021",
+                          "LS24_mean"  = "LS 2024",
+                          "BMI21_mean" = "BMI 2021",
+                          "BMI24_mean" = "BMI 2024"
+  ))
 
-crude %>%
-  count(typology_child)
+plot_na_comparison <- function(audit_list) {
+  
+  na_data <- bind_rows(audit_list) %>%
+    dplyr::filter(response_category == "NA (missing)") %>%
+    dplyr::select(variable, age_mean, LS21_mean, LS24_mean, BMI21_mean, BMI24_mean) %>%
+    pivot_longer(
+      cols = -variable,
+      names_to = "outcome",
+      values_to = "na_mean"
+    ) %>%
+    mutate(outcome = recode(outcome,
+                            "age_mean"   = "Age",
+                            "LS21_mean"  = "LS 2021",
+                            "LS24_mean"  = "LS 2024",
+                            "BMI21_mean" = "BMI 2021",
+                            "BMI24_mean" = "BMI 2024"
+    ))
+  
+  plot_data <- na_data %>%
+    left_join(crude_stat_long, by = "outcome") %>%
+    mutate(
+      diff = na_mean - overall_mean,
+      outcome = factor(outcome,
+                       levels = c("Age", "LS 2021", "LS 2024", "BMI 2021", "BMI 2024"))
+    )
+  
+  ggplot(plot_data, aes(x = variable, y = na_mean, group = outcome, color = outcome)) +
+    geom_line(linewidth = 0.8) +
+    geom_point(size = 2.5) +
+    geom_hline(data = crude_stat_long,
+               aes(yintercept = overall_mean, color = outcome),
+               linetype = "dashed", linewidth = 0.6, alpha = 0.5) +
+    facet_wrap(~outcome, scales = "free_y", ncol = 1) +
+    labs(
+      title    = "NA group means vs crude sample means",
+      subtitle = "Solid line = NA group | Dashed line = crude sample mean",
+      x        = "Variable",
+      y        = "Mean value",
+      color    = "Outcome"
+    ) +
+    theme_minimal(base_size = 11) +
+    theme(
+      plot.title       = element_text(face = "bold", size = 13),
+      plot.subtitle    = element_text(size = 9, color = "grey40"),
+      axis.text.x      = element_text(angle = 45, hjust = 1, size = 8),
+      legend.position  = "none",
+      strip.text       = element_text(face = "bold"),
+      panel.grid.minor = element_blank()
+    )
+}
+
+plot_na_comparison(audit_list)
 
 #ADULTHOOD TYPOLOGY: STEP-WISE ANALYSIS----
 
@@ -1420,34 +1401,50 @@ plot_margins(
 
 ##4. predicted probability across BMI range by group----
 ### NOTE: concordant heavy only exists at BMI >= 30 by definition,
-### so predictions below BMI 30 for that group are extrapolation
+### !so predictions below BMI 30 for that group are extrapolation!
 
 ### prediction grid: 2 groups x observed BMI range
 pred_grid <- expand.grid(
   BMI_21 = unique(crude$BMI_21),
   typAdult_bin = factor(c("everyone else", "concordant heavy"),
                         levels = c("everyone else", "concordant heavy")),
-  LS21_cat = factor("satisfied",
+  LS21_cat = factor(levels(crude$LS21_cat),
                     levels = levels(crude$LS21_cat))
 )
 
-### get predicted probabilities from interaction model
 pred_probs <- predict(typAdult_bin_crude, 
                       newdata = pred_grid, 
                       type = "probs")
+
 pred_grid$satisfied <- pred_probs[, "satisfied"]
 
 ### plot: 2 lines
 ggplot(pred_grid, aes(x = BMI_21, y = satisfied, color = typAdult_bin)) +
   geom_line(linewidth = 1) +
-  scale_y_continuous(limits = c(0.6, 1), labels = scales::percent) +
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+  facet_wrap(~LS21_cat) +
+  geom_vline(xintercept = 30, linetype = "dashed", color = "grey40", linewidth = 0.6) +
+  annotate("text", x = 31, y = 0.05, label = "BMI 30", 
+           hjust = 0, size = 3, color = "grey40") +
   labs(
-    x = "BMI (2021)",
-    y = "Predicted probability of feeling satisfied at follow up",
+    x     = "BMI (2021)",
+    y     = "Predicted probability of satisfied LS in 2024",
     color = "Group",
-    title = "Predicted probability of life satisfaction by BMI and weight perception typology"
+    title = "Predicted probability of satisfied LS in 2024 by BMI and weight perception group"
   ) +
   theme_minimal()
+
+
+library(marginaleffects)
+
+comparisons(typAdult_bin_crude,
+            variables = "typAdult_bin",
+            by = "LS21_cat",
+            type = "probs")
+
+crude %>%
+  count(typAdult_bin, LS21_cat) %>%
+  print()
 
 ##5. 3-line visual: add whole-sample baseline from H1----
 ### baseline model: continuous BMI, no typology grouping
@@ -1486,11 +1483,6 @@ pred_all$typAdult_bin <- factor(pred_all$typAdult_bin,
 ggplot(pred_all, aes(x = BMI_21, y = satisfied, color = typAdult_bin)) +
   geom_line(linewidth = 1) +
   scale_y_continuous(limits = c(0.6, 1), labels = scales::percent) +
-  scale_color_manual(values = c(
-    "whole sample"     = "maroon2",
-    "everyone else"    = "#4472C4",
-    "concordant heavy" = "#C0504D"
-  )) +
   labs(
     x = "BMI (2021)",
     y = "Predicted probability of satisfied",
@@ -1498,3 +1490,25 @@ ggplot(pred_all, aes(x = BMI_21, y = satisfied, color = typAdult_bin)) +
     title = "Predicted probability of life satisfaction by BMI and weight perception typology"
   ) +
   theme_minimal()
+
+
+typAdult_3way <- crude %>% run_polr(
+  "typAdult_3way",
+  LS24_cat ~ BMI_21 * typAdult_bin * LS21_cat
+)
+
+
+##confusion model----
+#confusion model----
+pred_class <- predict(typAdult_bin_crude, type = "class")
+
+conf_matrix <- table(
+  Predicted = pred_class,
+  Actual = crude$LS24_cat[!is.na(crude$typAdult_bin)]
+)
+
+print(conf_matrix)
+
+# overall accuracy
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+cat("Accuracy:", round(accuracy * 100, 1), "%\n")
