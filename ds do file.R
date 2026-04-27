@@ -364,6 +364,15 @@ ds <- ds %>%
     )
     )
 
+ds <- ds %>%
+  mutate(
+    diplUd_21_bin = case_when(
+      diplUd_21 == "yes" ~ "yes",
+      diplUd_21 == "no"  ~ "no",
+      is.na(diplUd_21)   ~ "no",  # checkbox non-response = did not attain
+      TRUE ~ NA_character_
+    ) %>% factor(levels = c("no", "yes"))
+  )
 
 #family history of overweight----
 ds <- ds %>%
@@ -1420,7 +1429,6 @@ crude %>%
       obe21_bin ~ "Obesity status"
     )
   ) %>%
-  add_p() %>%
   bold_labels()
 
 #ADULTHOOD TYPOLOGY: STEP-WISE ANALYSIS----
@@ -1448,11 +1456,44 @@ plot_margins(
   title = "Predicted probability of life satisfaction (2024) by adulthood weight perception-status typology"
 )
 
-##4. predicted probability across BMI range by group----
+
+
+
+##predicted probability across BMI range by group----
 ### NOTE: concordant heavy only exists at BMI >= 30 by definition,
 ### !so predictions below BMI 30 for that group are extrapolation!
 
-### prediction grid: 2 groups x observed BMI range
+
+
+###concordant heavy V everyone else----
+pred_grid <- expand.grid(
+  BMI_21 = seq(min(crude$BMI_21, na.rm = TRUE),
+               max(crude$BMI_21, na.rm = TRUE),
+               length.out = 200),
+  typAdult_bin = levels(crude$typAdult_bin),
+  LS21_cat = factor("satisfied", levels = levels(crude$LS21_cat))
+)
+
+pred_probs <- predict(typAdult_bin_crude,
+                      newdata = pred_grid,
+                      type = "probs")
+
+pred_grid$satisfied <- pred_probs[, "satisfied"]
+
+ggplot(pred_grid, aes(x = BMI_21, y = satisfied, color = typAdult_bin)) +
+  geom_line(linewidth = 1) +
+  scale_y_continuous(limits = c(0.6, 1), labels = scales::percent) +
+  scale_color_manual(values = c("everyone else" = "#2166AC",
+                                "concordant heavy" = "#D6604D")) +
+  labs(
+    x = "BMI (2021)",
+    y = "Predicted probability of satisfied",
+    color = "Group",
+    title = "Predicted probability of life satisfaction by BMI and weight perception typology",
+    subtitle = "Adjusted for baseline life satisfaction (2021)"
+  ) +
+  theme_minimal()
+
 pred_grid <- expand.grid(
   BMI_21 = unique(crude$BMI_21),
   typAdult_bin = factor(c("everyone else", "concordant heavy"),
@@ -1467,7 +1508,6 @@ pred_probs <- predict(typAdult_bin_crude,
 
 pred_grid$satisfied <- pred_probs[, "satisfied"]
 
-### plot: 2 lines
 ggplot(pred_grid, aes(x = BMI_21, y = satisfied, color = typAdult_bin)) +
   geom_line(linewidth = 1) +
   scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
@@ -1484,16 +1524,13 @@ ggplot(pred_grid, aes(x = BMI_21, y = satisfied, color = typAdult_bin)) +
   theme_minimal()
 
 
-library(marginaleffects)
+# library(marginaleffects)
+# 
+# comparisons(typAdult_bin_crude,
+#             variables = "typAdult_bin",
+#             by = "LS21_cat",
+#             type = "probs")
 
-comparisons(typAdult_bin_crude,
-            variables = "typAdult_bin",
-            by = "LS21_cat",
-            type = "probs")
-
-crude %>%
-  count(typAdult_bin, LS21_cat) %>%
-  print()
 
 ##3-line visual: add whole-sample baseline from H1----
 ### baseline model: continuous BMI, no typology grouping
@@ -1541,11 +1578,6 @@ ggplot(pred_all, aes(x = BMI_21, y = satisfied, color = typAdult_bin)) +
   theme_minimal()
 
 
-typAdult_3way <- crude %>% run_polr(
-  "typAdult_3way",
-  LS24_cat ~ BMI_21 * typAdult_bin * LS21_cat
-)
-
 
 ##confusion model----
 pred_class <- predict(typAdult_bin_crude, type = "class")
@@ -1583,10 +1615,11 @@ cat("Accuracy:", round(accuracy * 100, 1), "%\n")
 
 
 
-#H3
+#H3----
 H3 <- crude %>% run_polr(
   "H3",
   LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + 
-    CWP_21 + obeInh_24)
+    CWP_21 + obeInh_24 + diplUd_21_bin)
 
 margPre_H3 <- run_margins(H3, "obe21_bin")
+nrow(crude) - nobs(H3)
