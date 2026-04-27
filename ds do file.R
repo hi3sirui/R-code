@@ -1124,7 +1124,7 @@ all_audits <- bind_rows(
   audit_dadPhys_21_large
 )
 View(all_audits)
-write.csv(all_audits, "all audits1.csv", row.names = FALSE)
+# write.csv(all_audits, "all audits1.csv", row.names = FALSE)
 
 # write.csv(all_audits, "variable_audit_table.csv", row.names = FALSE)
 # cat("\n\nSaved: variable_audit_table.csv\n")
