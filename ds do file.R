@@ -1,12 +1,12 @@
 library(dplyr)
 
-# ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+# ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
 # crude <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 # restrictive <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 
-# test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+# test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
 
 
 #PREP----
@@ -397,6 +397,8 @@ ds <- ds %>%
     levels = c("no difference", "heavier", "thinner"))
   )
 
+View(crude)
+
 #Typology----
 ##CWP----
 ds <- ds %>%
@@ -582,9 +584,9 @@ H1_crude <- crude %>% run_polr(
 
 margPre_H1_crude <- run_margins(H1_crude, "obe21_bin")
 
-plot_margins(margPre_H1_cruSmpl, "obe21_bin",
+plot_margins(margPre_H1_crude, "obe21_bin",
              x_label = "Obesity Status (2021)",
-             title = "Predicted probability of life satisfaction (2024) by obesity status"
+             title = "Predicted life satisfaction category (2024) by obesity status"
              )
 
 
@@ -621,24 +623,23 @@ plot_margins(margPred_H1_res, "obe21_bin",
 
 
 #H2: effect modifiers----
-##H2 sample size: 16390----
-H2_sample <- crude_sample %>%
-  filter(!is.na(obePersist) & 
-           !is.na(CWP_21) & 
-           !is.na(parentPhys_cat))
-nrow(H2_sample) #n = 16390
-write.csv(H2_sample, "H2 sample.csv", row.names = FALSE)
+# H2_sample <- crude_sample %>%
+#   filter(!is.na(obePersist) & 
+#            !is.na(CWP_21) & 
+#            !is.na(parentPhys_cat))
+# nrow(H2_sample) #n = 16390
+# write.csv(H2_sample, "H2 sample.csv", row.names = FALSE)
 ##severity----
 ###crude----
 
-
 ##obesity severity----
+###!!! NOT effect modifier----
+
 H2_severity <- crude %>% run_polr(
   "H2_severity",
   LS24_cat ~ BMI_21_label + LS21_cat
 )
 
-##restrictive sample----
 H2_severity_res <- restrictive %>% run_polr(
   "H2_vererity_reSmpl",
   LS24_cat ~ BMI_21_label + LS21_cat
@@ -648,11 +649,10 @@ H2_severity_res <- restrictive %>% run_polr(
 margPre_H2_severity <- run_margins(H2_severity, "BMI_21_label")
 margPre_H2_severity_res <- run_margins(H2_severity_res, "BMI_21_label")
 
-###visual----
 plot_margins(
   margPre_H2_severity, "BMI_21_label",
   x_label = "BMI category (2021)",
-  title = "Predicted probability of life satisfaction (2024) by BMI category"
+  title = "Predicted life satisfaction category (2024) by BMI category"
 )
 
 plot_margins(
@@ -664,7 +664,8 @@ plot_margins(
 
 
 
-##obesity persistence, NO product term----
+##obesity persistence----
+###!!!NOT effect modifier----
 H2_obePersist <- crude %>% run_polr(
   "H2_obePersist",
   LS24_cat ~ obePersist + LS21_cat
@@ -676,14 +677,12 @@ H2_obPersist_res <- restrictive %>% run_polr(
 )
 
 
-###marg predicted prob----
 margPre_H2_obePersist <- run_margins(H2_obePersist, "obePersist")
 margPre_H2_obePersist_res <- run_margins(H2_obPersist_res, "obePersist")
 
-###visual----
 plot_margins(margPre_H2_obePersist, "obePersist",
              x_label = "Obesity persistence",
-             title = "Predicted probability of life satisfaction (2024) by obesity persistence")
+             title = "Predicted life satisfaction category (2024) by obesity persistence")
 
 plot_margins(margPre_H2_obePersist_res, "obePersist",
              x_label = "Obesity persistence",
@@ -691,35 +690,29 @@ plot_margins(margPre_H2_obePersist_res, "obePersist",
 
 
 ##childhood weight perception ----
-###H2_CWP: LS24cat ~ CWP_21 + LS21_cat----
+###!!!only heavier----
 H2_CWP <- crude %>% run_polr(
-  "H2_CWP_cruSmpl",
+  "H2_CWP",
   LS24_cat ~ obe21_bin * CWP_21 + LS21_cat
 )
 
-###marg predicted prob----
 margPre_H2_CWP <- run_margins(H2_CWP, "CWP_21")
 margPre_H2_CWP_cruSmpl <- run_margins(H2_CWP_cruSmpl, "CWP_21")
 
-###visual----
 plot_margins(
   margPre_H2_CWP, "CWP_21",
   x_label = "Childhood Weight Perception (2021)",
   title = "Predicted probability of life satisfaction (2024) by childhood weight perception"
 )
 
-###effect of CWP by obesity status----
-margPre_H2_CWP_interaction <- avg_predictions(H2_CWP,
-                                              variables = list(
-                                                CWP_21 = c("no difference", "heavier", "thinner"),
-                                                obe21_bin = c("non-obese", "obese")
-                                              ),
-                                              type = "probs") %>%
-  as.data.frame()
+margPre_H2_CWP <- avg_predictions(H2_CWP,
+                                  variables = list(
+                                  CWP_21 = c("no difference", "heavier", "thinner"),
+                                  obe21_bin = c("non-obese", "obese")),
+                                  type = "probs") %>% as.data.frame()
 
 print(margPre_H2_CWP_interaction)
 
-###visual----
 margPre_H2_CWP_interaction %>%
   mutate(
     group = factor(group, levels = c("dissatisfied", "neutral", "satisfied")),
@@ -751,14 +744,12 @@ margPre_H2_CWP_interaction %>%
 
 
 
-##parental body size: NOT significant ----
-###H2_parent----
-H2_parent <- H2_sample %>% run_polr(
+##parental body size :(( ----
+H2_parent <- crude %>% run_polr(
   "H2_parent",
   LS24_cat ~ parentPhys_cat * obe21_bin + LS21_cat
 )
 
-###marg predicted prob----
 H2_parent_margPre <- run_margins(H2_parent, "parentPhys_cat")
 
 H2_momPhys <- H2_sample %>% run_polr(
@@ -771,13 +762,14 @@ H2_dadPhys <- H2_sample %>% run_polr(
   LS24_cat ~ obe21_bin * dadPhys_21_large + LS21_cat
 )
 
-##typology: AWP - obe21_bin ----
-table(ds$WS_d21, useNA = "always")
-table(H2_sample$typology, useNA = "always")
 
-H2_typology_AWP <- H2_sample %>% run_polr(
+##AWP typology:))----
+# table(ds$WS_d21, useNA = "always")
+# table(H2_sample$typology, useNA = "always")
+
+H2_typology_AWP <- crude %>% run_polr(
   "H2_typology_AWP",
-  LS24_cat ~ typology + LS21_cat
+  LS24_cat ~ typology_adult + LS21_cat
 )
 
 H2_typology_AWP_cruSmpl <- crude_sample %>% run_polr(
@@ -785,18 +777,26 @@ H2_typology_AWP_cruSmpl <- crude_sample %>% run_polr(
   LS24_cat ~ typology + LS21_cat
 )
 
-###marg predicted prob----
-margPre_typology_AWP <- run_margins(H2_typology_AWP, "typology")
+margPre_typology_AWP <- run_margins(H2_typology_AWP, "typology_adult")
 margPre_typology_AWP_cruSmpl <- run_margins(H2_typology_AWP_cruSmpl, "typology")
 
-###visual----
-plot_margins(margPre_typology_AWP, "typology",
+plot_margins(margPre_typology_AWP, "typology_adult",
              x_label = "Adulthood weight status-perception typology (all data from 2021)",
              title = "Predicted probability of life satisfaction (2024) by adulthood weight perception typology")
 
+###adding continuous BMI----
+H2_typology_AWP_BMIadj <- crude %>% run_polr(
+  "H2_typology_AWP_BMIadj",
+  LS24_cat ~ typology_adult + BMI_21 + LS21_cat
+)
 
-##typology: CWP - obe21_bin----
-H2_typology_CWP <- H2_sample %>% run_polr(
+margPre_typlogy_CWP_BMIadj <- run_margins(H2_typology_AWP_BMIadj, "typology_adult")
+plot_margins(margPre_typlogy_CWP_BMIadj, "typology_adult",
+             x_label = "Adulthood weight status-perception typology",
+             title = "Predicted probability of life satisfaction (2024) by adulthood weight perception typology, attenuated by baseline BMI (continuous)")
+
+##CWP typology ----
+H2_typology_CWP <- crude %>% run_polr(
   "H2_typology_CWP",
   LS24_cat ~ typology_child + LS21_cat
 )
@@ -807,15 +807,35 @@ H2_typology_CWP_cruSmpl <- crude_sample %>% run_polr(
 )
 
 
-###marg predicted prob----
 margPre_typology_CWP <- run_margins(H2_typology_CWP, "typology_child")
 margPre_typology_CWP_cruSmpl <- run_margins(H2_typology_CWP_cruSmpl, "typology_child")
 
-###visual----
 plot_margins(margPre_typology_CWP, "typology_child",
              x_label = "Childhood weight status-perception typology",
              title = "Predicted probability of life satisfaction (2024) by childhood weight perception typology")
 
+###adding continuous BMI---- 
+H2_typology_CWP_BMIadj <- crude %>% run_polr(
+  "H2_typology_CWP_BMIadj",
+  LS24_cat ~ typology_child + BMI_21 + LS21_cat
+)
+
+margPre_typlogy_CWP_BMIadj <- run_margins(H2_typology_CWP_BMIadj, "typology_child")
+plot_margins(margPre_typlogy_CWP_BMIadj, "typology_child",
+             x_label = "Childhood weight status-perception typology",
+             title = "Predicted probability of life satisfaction (2024) by childhood weight perception typology, attenuated by baseline BMI (continuous)")
+
+
+CWP_BMI <- ds %>%
+  dplyr::select(
+    age_2021_imputed,
+    BMI_21,
+    BMI_21_label,
+    CWP_21,
+    typology_child
+  )
+
+View(CWP_BMI)
 
 #TABLE 1, crude----
 library(gtsummary)
@@ -824,7 +844,8 @@ crude %>%
                 obePersist, CWP_21, AWP_21, parentPhys_cat, diplUd_21, obeInh_24) %>%
   tbl_summary(
     by = BMI_21_label,
-    missing = "ifany",
+    missing = "always",
+    missing_text = "Missing",
     statistic = list(
       all_continuous() ~ "{mean} ({sd})",
       all_categorical() ~ "{n} ({p}%)"
@@ -834,20 +855,26 @@ crude %>%
       BMI_21 ~ "BMI (kg/m²)",
       obePersist ~ "Obesity persistence between baseline and follow-up",
       CWP_21 ~ "Childhood weight perception",
+      AWP_21 ~ "Adulthood weight perception",
       parentPhys_cat ~ "Parental body size",
       diplUd_21 ~ "Attainment of diplomuddannelse",
       obeInh_24 ~ "Family history of overweight (heredity)"
-    )
+    ),
+    percent = "column",
+    type = list(diplUd_21 ~ "categorical",
+                obeInh_24 ~ "categorical"),
+    value = list(diplUd_21 ~ "yes")
   ) %>%
   add_overall() %>%
   modify_spanning_header(all_stat_cols() ~ "**BMI categories, crude sample**") %>%
   bold_labels()
 
-table(ds$diplUd_21, useNA = "always")
-sum(!is.na(ds$diplUd_21))
 
-crude %>%
-  count(obeInh_24)
+library(flextable)
+table1 %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path = "table1.docx")
+
 
 #TABLE 1, restrictive----
 restrictive %>%
@@ -1373,9 +1400,32 @@ plot_na_comparison <- function(audit_list) {
 
 plot_na_comparison(audit_list)
 
+library(gtsummary)
+
+crude %>%
+  mutate(diplUd_missing = is.na(diplUd_21)) %>%
+  dplyr::select(diplUd_missing, age_2021_imputed, BMI_21, 
+                LS21, LS24, obe21_bin, CWP_21) %>%
+  tbl_summary(
+    by = diplUd_missing,
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    label = list(
+      age_2021_imputed ~ "Age",
+      BMI_21 ~ "BMI (kg/m²)",
+      LS21 ~ "Life satisfaction 2021",
+      LS24 ~ "Life satisfaction 2024",
+      obe21_bin ~ "Obesity status"
+    )
+  ) %>%
+  add_p() %>%
+  bold_labels()
+
 #ADULTHOOD TYPOLOGY: STEP-WISE ANALYSIS----
 
-##1. create binary variable: concordant heavy vs everyone else----
+##create binary variable: concordant heavy vs everyone else----
 ds <- ds %>%
   mutate(
     typAdult_bin = factor(case_when(
@@ -1384,13 +1434,12 @@ ds <- ds %>%
     ), levels = c("everyone else", "concordant heavy"))
   )
 
-##2. interaction model: BMI * typAdult_bin----
+##interaction model: BMI * typAdult_bin----
 typAdult_bin_crude <- crude %>% run_polr(
   "typAdult_bin",
   LS24_cat ~ BMI_21 * typAdult_bin + LS21_cat
 )
 
-##3. marginal predicted probabilities by group----
 margPre_typAdult_bin_crude <- run_margins(typAdult_bin_crude, "typAdult_bin")
 
 plot_margins(
@@ -1446,7 +1495,7 @@ crude %>%
   count(typAdult_bin, LS21_cat) %>%
   print()
 
-##5. 3-line visual: add whole-sample baseline from H1----
+##3-line visual: add whole-sample baseline from H1----
 ### baseline model: continuous BMI, no typology grouping
 H1_continuous <- crude %>% run_polr(
   "H1_continuous",
@@ -1499,7 +1548,6 @@ typAdult_3way <- crude %>% run_polr(
 
 
 ##confusion model----
-#confusion model----
 pred_class <- predict(typAdult_bin_crude, type = "class")
 
 conf_matrix <- table(
@@ -1512,3 +1560,33 @@ print(conf_matrix)
 # overall accuracy
 accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
 cat("Accuracy:", round(accuracy * 100, 1), "%\n")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#H3
+H3 <- crude %>% run_polr(
+  "H3",
+  LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + 
+    CWP_21 + obeInh_24)
+
+margPre_H3 <- run_margins(H3, "obe21_bin")
