@@ -390,6 +390,7 @@ ds <- ds %>%
     )
     )
 
+
 ds <- ds %>%
   mutate(
     diplUd_21_bin = case_when(
@@ -398,6 +399,15 @@ ds <- ds %>%
       is.na(diplUd_21)   ~ "no",  # checkbox non-response = did not attain
       TRUE ~ NA_character_
     ) %>% factor(levels = c("no", "yes"))
+  )
+
+#working night schedule----
+ds <- ds %>%
+  mutate(nightSche_grp = factor(case_when(
+    nightSche_21 == 1 ~ "yes",
+    nightSche_21 == 0 ~ "no",
+    is.na(nightSche_21) ~ "no"
+  ), levels = c("no", "yes"))
   )
 
 #family history of overweight----
@@ -419,6 +429,16 @@ ds <- ds %>%
       CWP_21 == 3 ~ "no difference"
     ),
     levels = c("no difference", "heavier", "thinner"))
+  )
+
+#teenage years weight perception----
+ds <- ds %>%
+  mutate(
+    WS_b21 = factor(case_when(
+      WS_b21 == 1 ~ "heavier",
+      WS_b21 == 2 ~ "thinner",
+      WS_b21 == 3 ~ "no difference"
+    ), levels = c("no difference", "heavier", "thinner"))
   )
 
 #Adulthood weight perception in 2021----
@@ -1680,11 +1700,9 @@ cat("Accuracy:", round(accuracy * 100, 1), "%\n")
 #H3----
 H3 <- crude %>% run_polr(
   "H3",
-  LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + 
-    CWP_21 + obeInh_24 + diplUd_21_bin)
+  LS24_cat ~ obe21_bin + obeInh_24 + LS21_cat)
 
 margPre_H3 <- run_margins(H3, "obe21_bin")
-nrow(crude) - nobs(H3)
 
 
 
@@ -1695,11 +1713,6 @@ nrow(crude) - nobs(H3)
 
 
 
-
-
-
-
-table(crude$WCT_21_bin, crude$parentPhys_cat, useNA = "always")
 
 crude %>%
   group_by(parentPhys_cat) %>%
@@ -1719,6 +1732,14 @@ crude %>%
       sum(WCT_21_bin == "wishes to change", na.rm = TRUE) / n * 100, 1)
   )
 
+
+
+#playground----
+##weight perception during teen :((----
+teenPerc <- crude %>% run_polr(
+  "teenPerc",
+  LS24_cat ~ obe21_bin * WS_b21 + LS21_cat
+)
 
 
 
