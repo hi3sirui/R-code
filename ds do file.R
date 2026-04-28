@@ -1552,7 +1552,8 @@ pred_grid <- expand.grid(
   BMI_21 = seq(min(crude$BMI_21, na.rm = TRUE),
                max(crude$BMI_21, na.rm = TRUE),
                length.out = 200),
-  typAdult_bin = levels(crude$typAdult_bin),
+  typAdult_bin = factor(c("everyone else", "concordant heavy"),
+                        levels = levels(crude$typAdult_bin)),
   LS21_cat = factor("satisfied", levels = levels(crude$LS21_cat))
 )
 
@@ -1576,34 +1577,26 @@ ggplot(pred_grid, aes(x = BMI_21, y = satisfied, color = typAdult_bin)) +
   ) +
   theme_minimal()
 
-pred_grid <- expand.grid(
-  BMI_21 = unique(crude$BMI_21),
-  typAdult_bin = factor(c("everyone else", "concordant heavy"),
-                        levels = c("everyone else", "concordant heavy")),
-  LS21_cat = factor(levels(crude$LS21_cat),
-                    levels = levels(crude$LS21_cat))
-)
 
-pred_probs <- predict(typAdult_bin_crude, 
-                      newdata = pred_grid, 
-                      type = "probs")
-
-pred_grid$satisfied <- pred_probs[, "satisfied"]
-
+###with BMI = 30 line----
 ggplot(pred_grid, aes(x = BMI_21, y = satisfied, color = typAdult_bin)) +
   geom_line(linewidth = 1) +
-  scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
-  facet_wrap(~LS21_cat) +
-  geom_vline(xintercept = 30, linetype = "dashed", color = "grey40", linewidth = 0.6) +
-  annotate("text", x = 31, y = 0.05, label = "BMI 30", 
+  geom_vline(xintercept = 30, linetype = "dashed", 
+             color = "grey40", linewidth = 0.6) +
+  annotate("text", x = 31, y = 0.62, label = "BMI 30",
            hjust = 0, size = 3, color = "grey40") +
+  scale_y_continuous(limits = c(0.6, 1), labels = scales::percent) +
+  scale_color_manual(values = c("everyone else" = "#2166AC",
+                                "concordant heavy" = "#D6604D")) +
   labs(
-    x     = "BMI (2021)",
-    y     = "Predicted probability of satisfied LS in 2024",
+    x = "BMI (2021)",
+    y = "Predicted probability of satisfied",
     color = "Group",
-    title = "Predicted probability of satisfied LS in 2024 by BMI and weight perception group"
+    title = "Predicted probability of life satisfaction by BMI and weight perception typology",
+    subtitle = "Adjusted for baseline life satisfaction (2021)"
   ) +
   theme_minimal()
+
 
 
 # library(marginaleffects)
@@ -1615,26 +1608,41 @@ ggplot(pred_grid, aes(x = BMI_21, y = satisfied, color = typAdult_bin)) +
 
 
 ##3-line visual: add whole-sample baseline from H1----
-### baseline model: continuous BMI, no typology grouping
-H1_continuous <- crude %>% run_polr(
-  "H1_continuous",
-  LS24_cat ~ BMI_21 + LS21_cat
-)
+bmi_seq <- seq(min(crude$BMI_21, na.rm = TRUE),
+               max(crude$BMI_21, na.rm = TRUE),
+               length.out = 200)
 
-### prediction grid for baseline (no typology)
+# baseline model prediction grid
 pred_grid_baseline <- data.frame(
-  BMI_21 = unique(crude$BMI_21),
+  BMI_21 = bmi_seq,
   LS21_cat = factor("satisfied", levels = levels(crude$LS21_cat))
 )
 
-### get predicted probabilities from baseline model
+H1_continuous <- crude %>% run_polr(
+    "H1_continuous",
+    LS24_cat ~ BMI_21 + LS21_cat
+  )
+
 pred_probs_baseline <- predict(H1_continuous,
                                newdata = pred_grid_baseline,
                                type = "probs")
 pred_grid_baseline$satisfied <- pred_probs_baseline[, "satisfied"]
 pred_grid_baseline$typAdult_bin <- "whole sample"
 
-### combine all three groups into one data frame
+# make sure pred_grid also uses bmi_seq
+pred_grid <- expand.grid(
+  BMI_21 = bmi_seq,
+  typAdult_bin = factor(c("everyone else", "concordant heavy"),
+                        levels = levels(crude$typAdult_bin)),
+  LS21_cat = factor("satisfied", levels = levels(crude$LS21_cat))
+)
+
+pred_probs <- predict(typAdult_bin_crude,
+                      newdata = pred_grid,
+                      type = "probs")
+pred_grid$satisfied <- pred_probs[, "satisfied"]
+
+# combine
 pred_grid$typAdult_bin <- as.character(pred_grid$typAdult_bin)
 
 pred_all <- bind_rows(
@@ -1642,22 +1650,35 @@ pred_all <- bind_rows(
   pred_grid_baseline[, c("BMI_21", "typAdult_bin", "satisfied")]
 )
 
-pred_all$typAdult_bin <- factor(pred_all$typAdult_bin,
-                                levels = c("whole sample", 
-                                           "everyone else", 
-                                           "concordant heavy"))
+pred_all_plot <- pred_all %>%
+  filter(!(typAdult_bin == "concordant heavy" & BMI_21 < 30))
 
-### plot: 3 lines
-ggplot(pred_all, aes(x = BMI_21, y = satisfied, color = typAdult_bin)) +
+
+pred_all$typAdult_bin <- factor(pred_all$typAdult_bin,
+                                levels = c("whole sample", "everyone else",  "concordant heavy"))
+
+# plot
+ggplot(pred_all_plot, #can use pred_all to keep extrapolation before BMI = 30
+       aes(x = BMI_21, y = satisfied, color = typAdult_bin)) +
   geom_line(linewidth = 1) +
+  geom_vline(xintercept = 30, linetype = "dashed",
+             color = "grey40", linewidth = 0.6) +
+  annotate("text", x = 31, y = 0.62, label = "BMI 30",
+           hjust = 0, size = 3, color = "grey40") +
   scale_y_continuous(limits = c(0.6, 1), labels = scales::percent) +
+  scale_color_manual(values = c("whole sample" = "grey50",
+                                "everyone else" = "#2166AC",
+                                "concordant heavy" = "#D6604D")) +
   labs(
     x = "BMI (2021)",
     y = "Predicted probability of satisfied",
     color = "Group",
-    title = "Predicted probability of life satisfaction by BMI and weight perception typology"
+    title = "Predicted probability of life satisfaction by BMI and weight perception typology",
+    subtitle = "Adjusted for baseline life satisfaction (2021)"
   ) +
   theme_minimal()
+
+
 
 
 
