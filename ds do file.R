@@ -1608,6 +1608,7 @@ ggplot(pred_grid, aes(x = BMI_21, y = satisfied, color = typAdult_bin)) +
 
 
 ##3-line visual: add whole-sample baseline from H1----
+###???----
 bmi_seq <- seq(min(crude$BMI_21, na.rm = TRUE),
                max(crude$BMI_21, na.rm = TRUE),
                length.out = 200)
@@ -1620,7 +1621,7 @@ pred_grid_baseline <- data.frame(
 
 H1_continuous <- crude %>% run_polr(
     "H1_continuous",
-    LS24_cat ~ BMI_21 + LS21_cat
+    LS24_cat ~ BMI_21
   )
 
 pred_probs_baseline <- predict(H1_continuous,
