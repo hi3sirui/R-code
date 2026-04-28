@@ -354,6 +354,22 @@ ds <- ds %>%
     ), levels = c("neither", "one parent", "both"))
   )
 
+ds <- ds %>%
+  mutate(
+    momPhys_21_AB = case_when(
+      momPhys_21 == 1 | momPhys_21 == 2 ~ "1",
+      momPhys_21 >2 ~ "0"
+    ),
+    dadPhys_21_AB = case_when(
+    dadPhys_21 == 1 | dadPhys_21 == 2 ~ "1",
+    dadPhys_21 > 2 ~ "0"
+    ),
+    parentPhys_AB = factor(case_when(
+      momPhys_21_AB == 1 & dadPhys_21_AB == 1 ~ "both",
+      momPhys_21_AB == 1 | dadPhys_21_AB == 1 ~ "one parent",
+      momPhys_21_AB == 0 & dadPhys_21_AB == 0 ~ "neither"
+    ), levels = c("neither", "one parent", "both"))
+  )
 
 ds <- ds %>%
   mutate(
@@ -791,7 +807,7 @@ margPre_H2_CWP_interaction %>%
 
 
 
-##parental body size :(( ----
+##parental body size A-C :(( ----
 H2_parent <- crude %>% run_polr(
   "H2_parent",
   LS24_cat ~ parentPhys_cat * obe21_bin + LS21_cat
@@ -808,6 +824,14 @@ H2_dadPhys <- H2_sample %>% run_polr(
   "H2_dadPhys",
   LS24_cat ~ obe21_bin * dadPhys_21_large + LS21_cat
 )
+
+##parental body size A-B :((----
+parentalSize_AB <- crude %>% run_polr(
+  "stricter parental body size",
+  LS24_cat ~ obe21_bin * parentPhys_AB + LS21_cat
+  
+)
+
 
 
 ##AWP typology:))----
@@ -1661,3 +1685,40 @@ H3 <- crude %>% run_polr(
 
 margPre_H3 <- run_margins(H3, "obe21_bin")
 nrow(crude) - nobs(H3)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+table(crude$WCT_21_bin, crude$parentPhys_cat, useNA = "always")
+
+crude %>%
+  group_by(parentPhys_cat) %>%
+  summarise(
+    n = n(),
+    wishes_to_change_n = sum(WCT_21_bin == "wishes to change", na.rm = TRUE),
+    wishes_to_change_pct = round(wishes_to_change_n / n * 100, 1)
+  )
+
+chisq.test(table(crude$WCT_21_bin, crude$parentPhys_cat))
+
+crude %>%
+  group_by(parentPhys_cat, obe21_bin) %>%
+  summarise(
+    n = n(),
+    wishes_to_change_pct = round(
+      sum(WCT_21_bin == "wishes to change", na.rm = TRUE) / n * 100, 1)
+  )
+
+
+
+
