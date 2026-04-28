@@ -326,6 +326,16 @@ ds <- ds %>%
   )
 
 
+#weight change thoughts----
+ds <- ds %>%
+  mutate(
+    WCT_21_bin = factor(case_when(
+      WCT_21 == 1 | WCT_21 == 2 ~ "change",
+      WCT_21 == 3 ~ "no change",
+      TRUE ~ NA_character_
+    ), levels = c("no change", "change"))
+    )
+
 #parental body size 2021----
 ds <- ds %>%
   mutate(
@@ -406,7 +416,6 @@ ds <- ds %>%
     levels = c("no difference", "heavier", "thinner"))
   )
 
-View(crude)
 
 #Typology----
 ##CWP----
@@ -474,6 +483,7 @@ crude <- ds %>%
     !is.na(LS24)
   )
 nrow(crude)
+View(ds)
 
 ## Restrictive----
 restrictive <- ds %>%
@@ -697,6 +707,34 @@ plot_margins(margPre_H2_obePersist_res, "obePersist",
              x_label = "Obesity persistence",
              title = "Predicted probability of life satisfaction (2024) by obesity persistence, restricted sample")
 
+
+##weight change thoughts----
+###!!!NOT effect modifier
+H2_WCT <- crude %>% run_polr(
+  "H2_WCT",
+  LS24_cat ~ BMI_21_label * WCT_21_bin + LS21_cat
+)
+
+margPre_H2_WCT <- run_margins(H2_WCT, "WCT_21_bin")
+
+plot_margins(
+  margPre_H2_WCT, "WCT_21_bin",
+  x_label = "Thoughts on changing weight (2021)",
+  title = "Predicted probability of life satisfaction (2024) by thoughts on changing weight"
+)
+
+# Is WCT associated with obesity status?
+table(crude$WCT_21_bin, crude$obe21_bin, useNA = "always")
+chisq.test(table(crude$WCT_21_bin, crude$obe21_bin))
+
+# Is WCT associated with continuous BMI?
+crude %>%
+  group_by(WCT_21_bin) %>%
+  summarise(
+    mean_BMI = mean(BMI_21, na.rm = TRUE),
+    sd_BMI   = sd(BMI_21, na.rm = TRUE),
+    n        = n()
+  )
 
 ##childhood weight perception ----
 ###!!!only heavier----
