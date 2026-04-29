@@ -533,7 +533,8 @@ restrictive <- ds %>%
     !is.na(momPhys_21),
     !is.na(dadPhys_21),
     !is.na(diplUd_21),
-    !is.na(obeInh_24)
+    !is.na(obeInh_24),
+    !is.na(age_2021_imputed)
   )
 nrow(restrictive)
 
@@ -626,15 +627,17 @@ plot_margins <- function(margins_data, x_var, x_label = x_var, title = "") {
 }
 
 
-#H1: H1 + LS21_cat----
+#H1----
 library(MASS)
 library(tidyverse)
 
 ##crude ----
+###UNadjusted----
 H1_crude <- crude %>% run_polr(
   "H1_crude",
-  LS24_cat ~ obe21_bin + LS21_cat
+  LS24_cat ~ obe21_bin
 )
+nobs(H1_crude)
 # install.packages("marginaleffects")
 
 margPre_H1_crude <- run_margins(H1_crude, "obe21_bin")
@@ -645,16 +648,22 @@ plot_margins(margPre_H1_crude, "obe21_bin",
              )
 
 
-##restrictive----
+###adjusted crude----
+H1_crudeAdj <- crude %>% run_polr(
+  "H1_crudeAdj",
+  LS24_cat ~ obe21_bin + LS21_cat
+)
+nobs(H1_crudeAdj)
+
+margPre_H1_crudeAdj <- run_margins(H1_crudeAdj, "obe21_bin")
+
+
+##restrictive, adjusted----
 H1_res <- restrictive %>% run_polr(
   "H1_res",
   LS24_cat ~ obe21_bin + LS21_cat
 )
-
-# H1_linear <- lm(LS24 ~ obeStat_21+ LS21,
-#                 data = crude_sample)
-# summary(H1_linear)
-# AIC(H1_linear)
+nobs(H1_res)
 
 margPred_H1_res <- run_margins(H1_res, "obe21_bin")
 plot_margins(margPred_H1_res, "obe21_bin",
@@ -672,36 +681,21 @@ plot_margins(margPred_H1_res, "obe21_bin",
 
 
 
-
-
-
-
-
-#H2: effect modifiers----
-# H2_sample <- crude_sample %>%
-#   filter(!is.na(obePersist) & 
-#            !is.na(CWP_21) & 
-#            !is.na(parentPhys_cat))
-# nrow(H2_sample) #n = 16390
-# write.csv(H2_sample, "H2 sample.csv", row.names = FALSE)
-##severity----
+#H2----
+##severity: by label, no product term----
 ###crude----
-
-##obesity severity----
-###!!! NOT effect modifier----
-
 H2_severity <- crude %>% run_polr(
   "H2_severity",
   LS24_cat ~ BMI_21_label + LS21_cat
 )
+nobs(H2_severity)
+margPre_H2_severity <- run_margins(H2_severity, "BMI_21_label")
 
+###restrictive----
 H2_severity_res <- restrictive %>% run_polr(
-  "H2_vererity_reSmpl",
+  "H2_severity_res",
   LS24_cat ~ BMI_21_label + LS21_cat
 )
-
-###marg predicted prob
-margPre_H2_severity <- run_margins(H2_severity, "BMI_21_label")
 margPre_H2_severity_res <- run_margins(H2_severity_res, "BMI_21_label")
 
 plot_margins(
@@ -710,29 +704,31 @@ plot_margins(
   title = "Predicted life satisfaction category (2024) by BMI category"
 )
 
+
 plot_margins(
   margPre_H2_severity_res, "BMI_21_label",
   x_label = "BMI category (2021)",
-  title = "Predicted probability of life satisfaction (2024) by BMI category, restricted sample"
+  title = "Predicted life satisfaction category (2024) by BMI category, restrictive sample"
 )
 
 
 
 
-##obesity persistence----
-###!!!NOT effect modifier----
+
+##persistencLe: no product term----
+###crude----
 H2_obePersist <- crude %>% run_polr(
   "H2_obePersist",
   LS24_cat ~ obePersist + LS21_cat
 )
+nobs(H2_obePersist)
+margPre_H2_obePersist <- run_margins(H2_obePersist, "obePersist")
 
 H2_obPersist_res <- restrictive %>% run_polr(
   "H2_obePersist",
   LS24_cat ~ obePersist + LS21_cat
 )
-
-
-margPre_H2_obePersist <- run_margins(H2_obePersist, "obePersist")
+nobs(H2_obPersist_res)
 margPre_H2_obePersist_res <- run_margins(H2_obPersist_res, "obePersist")
 
 plot_margins(margPre_H2_obePersist, "obePersist",
@@ -825,9 +821,24 @@ margPre_H2_CWP_interaction %>%
   theme(legend.position = "bottom")
 
 
-
+##adulthood weight perception----
+H2_AWP <- crude %>% run_polr(
+  "H2_AWP",
+  LS24_cat ~ AWP_21 * obe21_bin + LS21_cat
+)
 
 ##parental body size A-C :(( ----
+H2_mom <- crude %>% run_polr(
+  "H2_mom",
+  LS24_cat ~ momPhys_21_large * obe21_bin + LS21_cat
+)
+
+H2_dad <- crude %>% run_polr(
+  "H2_mom",
+  LS24_cat ~ dadPhys_21_large * obe21_bin + LS21_cat
+)
+
+
 H2_parent <- crude %>% run_polr(
   "H2_parent",
   LS24_cat ~ parentPhys_cat * obe21_bin + LS21_cat
@@ -1722,12 +1733,26 @@ cat("Accuracy:", round(accuracy * 100, 1), "%\n")
 #H3----
 H3 <- crude %>% run_polr(
   "H3",
-  LS24_cat ~ obe21_bin + obeInh_24 + LS21_cat)
+  LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + 
+    diplUd_21_bin + obeInh_24)
 
 margPre_H3 <- run_margins(H3, "obe21_bin")
 
+##sequential models----
+H3_m1 <- crude %>% run_polr(
+  "H3_m1",
+  LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed
+)
 
+H3_m2 <- crude %>% run_polr(
+  "H3_m2",
+  LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + diplUd_21_bin
+)
 
+H3_m3 <- crude %>% run_polr(
+  "H3_m3",
+  LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + diplUd_21_bin + obeInh_24
+)
 
 
 
