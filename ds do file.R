@@ -511,15 +511,7 @@ ds <- ds %>%
                       levels = c("dissatisfied", "neutral", "satisfied"), ordered = TRUE)
   )
 
-##dichotomize LGBT----
-ds <- ds %>%
-  mutate(
-    lgbt_binary = case_when(
-      lgbtID == 1 ~ 1,
-      lgbtID == 2 ~ 0,
-      lgbtID %in% c(3, 4) ~ NA_real_
-    )
-  )
+
 
 #sample data set updates----
 ##crude ----
@@ -643,7 +635,7 @@ library(MASS)
 library(tidyverse)
 
 ##crude ----
-###UNadjusted----
+###unadjusted----
 H1_crude <- crude %>% run_polr(
   "H1_crude",
   LS24_cat ~ obe21_bin
@@ -658,8 +650,7 @@ plot_margins(margPre_H1_crude, "obe21_bin",
              title = "Predicted life satisfaction category (2024) by obesity status"
              )
 
-
-###adjusted crude----
+####adjusted----
 H1_crudeAdj <- crude %>% run_polr(
   "H1_crudeAdj",
   LS24_cat ~ obe21_bin + LS21_cat
@@ -669,15 +660,26 @@ nobs(H1_crudeAdj)
 margPre_H1_crudeAdj <- run_margins(H1_crudeAdj, "obe21_bin")
 
 
-##restrictive, adjusted----
+##restrictive----
+###unadjusted----
 H1_res <- restrictive %>% run_polr(
   "H1_res",
-  LS24_cat ~ obe21_bin + LS21_cat
+  LS24_cat ~ obe21_bin
 )
 nobs(H1_res)
+margPre_H1_res <- run_margins(H1_res, "obe21_bin")
 
-margPred_H1_res <- run_margins(H1_res, "obe21_bin")
-plot_margins(margPred_H1_res, "obe21_bin",
+
+###adjusted----
+H1_resAdj <- restrictive %>% run_polr(
+  "H1_resAdj",
+  LS24_cat ~ obe21_bin + LS21_cat
+)
+nobs(H1_resAdj)
+margPred_H1_resAdj <- run_margins(H1_resAdj, "obe21_bin")
+
+
+plot_margins(margPred_H1_resAdj, "obe21_bin",
              x_label = "Obesity Status (2021)",
              title = "Predicted probability of life satisfaction (2024) by obesity status, restrictive sample")
 
@@ -723,8 +725,7 @@ plot_margins(
 )
 
 
-
-
+View(crude)
 
 ##persistence: no product term----
 ###crude----
@@ -1849,8 +1850,7 @@ cat("Accuracy:", round(accuracy * 100, 1), "%\n")
 #H3----
 H3 <- crude %>% run_polr(
   "H3",
-  LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + 
-    diplUd_21_bin + obeInh_24)
+  LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed)
 
 margPre_H3 <- run_margins(H3, "obe21_bin")
 
@@ -1859,19 +1859,26 @@ H3_m1 <- crude %>% run_polr(
   "H3_m1",
   LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed
 )
+nobs(H3_m1)
 
 H3_m2 <- crude %>% run_polr(
   "H3_m2",
   LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + diplUd_21_bin
 )
+nobs(H3_m2)
+
 
 H3_m3 <- crude %>% run_polr(
   "H3_m3",
   LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + diplUd_21_bin + obeInh_24
 )
+nobs(H3_m3)
 
-
-
+H3_m4 <- crude %>% run_polr(
+  "H3_m4",
+  LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + diplUd_21_bin + obeInh_24 + parentPhys_cat
+)
+nobs(H3_m4)
 
 
 
