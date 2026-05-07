@@ -86,6 +86,7 @@ ds <- ds %>%
   )
 
 
+
 ds <- ds %>%
   filter(age_2021_imputed >= 25,
          cpr_sex==1,
@@ -411,12 +412,31 @@ ds <- ds %>%
   ), levels = c("no", "yes"))
   )
 
+#working mixed shift----
+ds <- ds %>%
+  mutate(work_schedule_d_k == factor(case_when(
+    work_schedule_d_k == 1 ~ "yes",
+    work_schedule_d_k == 0 ~ "no",
+    is.na(work_schedule_d_k) ~ "no"
+  ), levels = c("no", "yes")
+  )
+  )
+
 #working anything other than day schedule----
 ds <- ds %>%
   mutate(
     dayOnly_21 = factor(
       if_else(daySche_21 == 1, "day schedule", "other"),
-      levels = c("day schedule", "other")
+      levels = c("other","day schedule")
+    )
+  )
+
+#working anything other than mixed shift----
+ds <- ds %>%
+  mutate(
+    mixedOnly = factor(
+      if_else(work_schedule_d_k == 1, "mixed schedule", "other"),
+      levels = c( "other", "mixed schedule")
     )
   )
 
@@ -1043,16 +1063,7 @@ plot_margins(margPre_typology_CWP, "typology_child",
              title = "Predicted probability of life satisfaction (2024) by childhood weight perception typology")
 
 
-CWP_BMI <- ds %>%
-  dplyr::select(
-    age_2021_imputed,
-    BMI_21,
-    BMI_21_label,
-    CWP_21,
-    typology_child
-  )
 
-View(CWP_BMI)
 
 #TABLE 1, crude----
 library(gtsummary)
@@ -1657,6 +1668,7 @@ typAdult_bin_crude <- crude %>% run_polr(
   "typAdult_bin",
   LS24_cat ~ BMI_21 * typAdult_bin + LS21_cat
 )
+nobs(typAdult_bin_crude)
 
 margPre_typAdult_bin_crude <- run_margins(typAdult_bin_crude, "typAdult_bin")
 
@@ -1879,7 +1891,6 @@ H3_m4 <- crude %>% run_polr(
   LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + diplUd_21_bin + obeInh_24 + parentPhys_cat
 )
 nobs(H3_m4)
-
 
 
 
