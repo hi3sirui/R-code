@@ -1,14 +1,16 @@
 library(dplyr)
 
-ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-# ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+# ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
 # crude <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 # restrictive <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 
-test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-# test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+# test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+View(test)
+
 test %>%
-  count(weight_change_k)
+  count(cpr_alder < 25)
 
 #PREP----
 ds <- ds %>%
@@ -59,7 +61,6 @@ ds <- ds %>%
          famInh_24 = inheritage_icd_v2,
          obeInh_24 = inheritage_icd_v3___5
   )
-
 
 ds <- ds %>%
   mutate(age_2021 = trunc(age_2021),
@@ -555,12 +556,36 @@ restrictive <- ds %>%
     !is.na(AWP_21),
     !is.na(momPhys_21),
     !is.na(dadPhys_21),
-    !is.na(diplUd_21),
+    !is.na(diplUd_21_bin),
     !is.na(obeInh_24),
     !is.na(age_2021_imputed)
   )
 nrow(restrictive)
 
+raw_res <- ds %>%
+  filter(
+    !is.na(BMI_21),
+    !is.na(BMI_24),
+    !is.na(LS21),
+    !is.na(LS24),
+    !is.na(CWP_21),
+    !is.na(AWP_21),
+    !is.na(momPhys_21),
+    !is.na(dadPhys_21),
+    !is.na(diplUd_21),
+    !is.na(obeInh_24),
+    !is.na(age_2021_imputed)
+  )
+nrow(raw_res)
+
+
+sum(is.na(crude$CWP_21))
+sum(is.na(crude$AWP_21))
+sum(is.na(crude$momPhys_21))
+sum(is.na(crude$dadPhys_21))
+sum(is.na(crude$diplUd_21))
+sum(is.na(crude$diplUd_21_bin))
+sum(!complete.cases(crude[, c("CWP_21", "AWP_21")]))
 
 
 
@@ -648,6 +673,17 @@ plot_margins <- function(margins_data, x_var, x_label = x_var, title = "") {
     theme_minimal() +
     theme(legend.position = "bottom")
 }
+
+
+library(ggplot2)
+
+ggplot(crude, aes(x = LS24)) +
+  geom_histogram(binwidth = 1, fill = "steelblue", color = "white") +
+  scale_x_continuous(breaks = 0:10) +
+  labs(title = "Distribution of Life Satisfaction at Baseline (2021)",
+       x = "Life Satisfaction (0-10)",
+       y = "Count") +
+  theme_minimal()
 
 
 #H1----
