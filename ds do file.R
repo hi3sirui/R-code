@@ -9,9 +9,6 @@ ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
 test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
 View(test)
 
-test %>%
-  count(cpr_alder < 25)
-
 #PREP----
 ds <- ds %>%
   rename(LS21 = quality_of_life_a_k,
@@ -579,14 +576,6 @@ raw_res <- ds %>%
 nrow(raw_res)
 
 
-sum(is.na(crude$CWP_21))
-sum(is.na(crude$AWP_21))
-sum(is.na(crude$momPhys_21))
-sum(is.na(crude$dadPhys_21))
-sum(is.na(crude$diplUd_21))
-sum(is.na(crude$diplUd_21_bin))
-sum(!complete.cases(crude[, c("CWP_21", "AWP_21")]))
-
 
 
 
@@ -741,8 +730,25 @@ plot_margins(margPred_H1_resAdj, "obe21_bin",
 
 
 
+##raw restrictive----
+###unadjusted----
+H1_raw_res <- raw_res %>% run_polr(
+  "H1_raw_res",
+  LS24_cat ~ obe21_bin
+)
+nobs(H1_raw_res)
+margPre_H1_raw_res <- run_margins(margPre_H1_raw_res, "obe21_bin")
 
-
+###adjusted----
+H1_raw_resAdj <- raw_res %>% run_polr(
+  "H1_raw_resAdj",
+  LS24_cat ~ obe21_bin + LS21_cat
+)
+nobs(H1_raw_resAdj)
+margPre_H1_raw_resAdj <- run_margins(H1_raw_resAdj, "obe21_bin")
+plot_margins(margPre_H1_raw_resAdj, "obe21_bin",
+             x_label = "Obesity Status (2021)",
+             title = "Predicted probability of life satisfaction (2024) by obesity status, raw restrictive sample")
 
 
 
@@ -760,19 +766,33 @@ H2_severity <- crude %>% run_polr(
 nobs(H2_severity)
 margPre_H2_severity <- run_margins(H2_severity, "BMI_21_label")
 
+plot_margins(
+  margPre_H2_severity, "BMI_21_label",
+  x_label = "BMI category (2021)",
+  title = "Predicted life satisfaction category (2024) by BMI category, crude sample"
+)
+
+
+###raw restrictive----
+H2_severity_raw_res <- raw_res %>% run_polr(
+  "H2_severity_raw_res",
+  LS24_cat ~ BMI_21_label + LS21_cat
+)
+margPre_H2_severity_raw_res <- run_margins(H2_severity_raw_res, "BMI_21_label")
+
+plot_margins(
+  margPre_H2_severity_raw_res, "BMI_21_label",
+  x_label = "BMI category (2021)",
+  title = "Predicted life satisfaction category (2024) by BMI category, raw restrictive sample"
+)
+
 ###restrictive----
 H2_severity_res <- restrictive %>% run_polr(
   "H2_severity_res",
   LS24_cat ~ BMI_21_label + LS21_cat
 )
+nobs(H2_severity_res)
 margPre_H2_severity_res <- run_margins(H2_severity_res, "BMI_21_label")
-
-plot_margins(
-  margPre_H2_severity, "BMI_21_label",
-  x_label = "BMI category (2021)",
-  title = "Predicted life satisfaction category (2024) by BMI category"
-)
-
 
 plot_margins(
   margPre_H2_severity_res, "BMI_21_label",
@@ -781,7 +801,6 @@ plot_margins(
 )
 
 
-View(crude)
 
 ##persistence: no product term----
 ###crude----
