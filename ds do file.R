@@ -487,7 +487,7 @@ ds <- ds %>%
 ds <- ds %>%
   mutate(
     typology_child = factor(case_when(
-      obe21_bin == "non-obese" & CWP_21 == "no difference" ~ "concordant healthy",
+      obe21_bin == "non-obese" & CWP_21 %in% c("no difference", "thinner") ~ "concordant healthy",
       obe21_bin == "obese"     & CWP_21 == "heavier"        ~ "concordant heavy",
       obe21_bin == "non-obese" & CWP_21 == "heavier"        ~ "over-perceiver",
       obe21_bin == "obese"     & CWP_21 == "no difference"  ~ "under-perceiver",
@@ -500,11 +500,11 @@ ds <- ds %>%
 ds <- ds %>%
   mutate(
     typology_adult = factor(case_when(
-      obe21_bin == "non-obese" & AWP_21 == "no difference" ~ "concordant healthy",
-      obe21_bin == "obese"     &  AWP_21 == "heavier"        ~ "concordant heavy",
-      obe21_bin == "non-obese" &  AWP_21 == "heavier"        ~ "over-perceiver",
-      obe21_bin == "obese"     &  AWP_21 == "no difference"  ~ "under-perceiver",
-      obe21_bin == "obese"     &  AWP_21 == "thinner"        ~ "under-perceiver"
+      obe21_bin == "non-obese" & AWP_21 %in% c("no difference", "thinner") ~ "concordant healthy",
+      obe21_bin == "obese"     & AWP_21 == "heavier"  ~ "concordant heavy",
+      obe21_bin == "non-obese" & AWP_21 == "heavier" ~ "over-perceiver",
+      obe21_bin == "obese"     & AWP_21 == "no difference" ~ "under-perceiver",
+      obe21_bin == "obese"     & AWP_21 == "thinner" ~ "under-perceiver"
     ), levels = c("concordant healthy", "concordant heavy",
                   "over-perceiver", "under-perceiver"))
   )
@@ -692,7 +692,7 @@ margPre_H1_crude <- run_margins(H1_crude, "obe21_bin")
 
 plot_margins(margPre_H1_crude, "obe21_bin",
              x_label = "Obesity Status (2021)",
-             title = "Predicted life satisfaction category (2024) by obesity status"
+             title = "Predicted life satisfaction category (2024) by obesity status, crude sample"
              )
 
 ####adjusted----
@@ -703,6 +703,10 @@ H1_crudeAdj <- crude %>% run_polr(
 nobs(H1_crudeAdj)
 
 margPre_H1_crudeAdj <- run_margins(H1_crudeAdj, "obe21_bin")
+plot_margins(margPre_H1_crudeAdj, "obe21_bin",
+             x_label = "Obesity Status (2021)",
+             title = "Predicted life satisfaction category (2024) by obesity status, crude sample"
+)
 
 
 ##restrictive----
@@ -883,6 +887,13 @@ nobs(H2_CWP)
 
 margPre_H2_CWP <- run_margins(H2_CWP, "CWP_21")
 
+2 * pnorm(abs(6.2323), lower.tail = FALSE)   # H3a bin_obese
+2 * pnorm(abs(-2.4372), lower.tail = FALSE)   # H3a CWP_heavier
+2 * pnorm(abs(-1.6205), lower.tail = FALSE)   # H3a CWP_thinner
+2 * pnorm(abs(1.7497), lower.tail = FALSE)   # H3a obese × heavier
+2 * pnorm(abs(0.2991), lower.tail = FALSE)   # H3a obese × thinner
+
+
 
 ###restrictive----
 H2_CWP_res <- restrictive %>% run_polr(
@@ -987,6 +998,9 @@ nobs(H2_AWP)
 
 margPre_H2_AWP <- run_margins(H2_AWP, "AWP_21")
 
+2 * pnorm(abs(0.5085), lower.tail = FALSE)   # H3b heavier × obesity (crude)
+2 * pnorm(abs(1.6223), lower.tail = FALSE)   # H3b thinner × obesity (crude)
+
 ###restrictive----
 H2_AWP_res <- restrictive %>% run_polr(
   "H2_AWP_res",
@@ -1084,6 +1098,13 @@ H2_typology_AWP <- crude %>% run_polr(
 nobs(H2_typology_AWP)
 margPre_typology_AWP <- run_margins(H2_typology_AWP, "typology_adult")
 
+plot_margins(margPre_typology_AWP, "typology_adult",
+             x_label = "Adulthood weight status-perception typology",
+             title = "Predicted probability of life satisfaction (2024) by adulthood weight status-perception typology, crude sample")
+
+crude %>%
+  count(typology_adult)
+
 ###restrictive----
 H2_typology_AWP_res <- restrictive %>% run_polr(
   "H2_typology_AWP_res",
@@ -1139,6 +1160,10 @@ H2_typology_CWP <- crude %>% run_polr(
 )
 nobs(H2_typology_CWP)
 margPre_H2_typology_CWP <- run_margins(H2_typology_CWP, "typology_child")
+
+plot_margins(margPre_H2_typology_CWP, "typology_child",
+             x_label = "Childhood weight status-perception typology",
+             title = "Predicted probability of life satisfaction (2024) by childhood weight perception typology, crude sample")
 
 
 ###restrictive----
@@ -1197,9 +1222,9 @@ plot_margins(margPre_typology_CWP, "typology_child",
 
 #TABLE 1, crude----
 library(gtsummary)
-crude %>%
+table1_gt <- crude %>%
   dplyr::select(BMI_21_label, age_2021_imputed, BMI_21, 
-                obePersist, CWP_21, AWP_21, parentPhys_cat, diplUd_21, obeInh_24) %>%
+                obePersist, parentPhys_cat, CWP_21, AWP_21, diplUd_21, obeInh_24) %>%
   tbl_summary(
     by = BMI_21_label,
     missing = "always",
@@ -1215,7 +1240,7 @@ crude %>%
       CWP_21 ~ "Childhood weight perception",
       AWP_21 ~ "Adulthood weight perception",
       parentPhys_cat ~ "Parental body size",
-      diplUd_21 ~ "Attainment of diplomuddannelse",
+      diplUd_21 ~ "Attainment of diploma education in nursing",
       obeInh_24 ~ "Family history of overweight (heredity)"
     ),
     percent = "column",
@@ -1226,10 +1251,10 @@ crude %>%
   add_overall() %>%
   modify_spanning_header(all_stat_cols() ~ "**BMI categories, crude sample**") %>%
   bold_labels()
-
+View(table1_gt)
 
 library(flextable)
-table1 %>%
+table1_gt %>%
   as_flex_table() %>%
   flextable::save_as_docx(path = "table1.docx")
 
