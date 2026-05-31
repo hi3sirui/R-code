@@ -887,11 +887,20 @@ nobs(H2_CWP)
 
 margPre_H2_CWP <- run_margins(H2_CWP, "CWP_21")
 
+plot_margins(
+  margPre_H2_CWP, "CWP_21",
+  x_label = "Childhood Weight Perception (2021)",
+  title = "Predicted probability of life satisfaction (2024) by childhood weight perception, crude sample"
+)
+
+
 2 * pnorm(abs(6.2323), lower.tail = FALSE)   # H3a bin_obese
 2 * pnorm(abs(-2.4372), lower.tail = FALSE)   # H3a CWP_heavier
 2 * pnorm(abs(-1.6205), lower.tail = FALSE)   # H3a CWP_thinner
 2 * pnorm(abs(1.7497), lower.tail = FALSE)   # H3a obese × heavier
 2 * pnorm(abs(0.2991), lower.tail = FALSE)   # H3a obese × thinner
+2 * pnorm(abs(2.2078), lower.tail = FALSE)   # restrictive, H3a obese × thinner
+
 
 
 
@@ -992,14 +1001,24 @@ crude %>%
 ###crude----
 H2_AWP <- crude %>% run_polr(
   "H2_AWP",
-  LS24_cat ~ AWP_21 * obe21_bin + LS21_cat
+  LS24_cat ~ obe21_bin * AWP_21 + LS21_cat
 )
 nobs(H2_AWP)
 
 margPre_H2_AWP <- run_margins(H2_AWP, "AWP_21")
 
-2 * pnorm(abs(0.5085), lower.tail = FALSE)   # H3b heavier × obesity (crude)
-2 * pnorm(abs(1.6223), lower.tail = FALSE)   # H3b thinner × obesity (crude)
+crude %>%
+  filter(obe21_bin == "obese", AWP_21 == "no difference") %>%
+  nrow()
+
+2 * pnorm(abs(-1.1147), lower.tail = FALSE)   # H3b obese
+2 * pnorm(abs(-5.9117), lower.tail = FALSE)   # H3b heavier
+2 * pnorm(abs(-0.9247), lower.tail = FALSE)   # H3b thinner
+2 * pnorm(abs(0.5085), lower.tail = FALSE)   # H3b obese:heavier
+2 * pnorm(abs(-1.6223), lower.tail = FALSE)   # H3b obese:thinner
+
+
+
 
 ###restrictive----
 H2_AWP_res <- restrictive %>% run_polr(
@@ -1019,6 +1038,12 @@ nobs(H2_AWP_raw_res)
 
 margPre_H2_AWP_raw_res <- run_margins(H2_AWP_raw_res, "AWP_21")
 
+2 * pnorm(abs(-1.1107), lower.tail = FALSE)   # H3b obese
+2 * pnorm(abs(-5.6703), lower.tail = FALSE)   # H3b heavier
+2 * pnorm(abs(-0.5562), lower.tail = FALSE)   # H3b thinner
+2 * pnorm(abs(0.5559), lower.tail = FALSE)   # H3b obese:heavier
+2 * pnorm(abs(-1.5811), lower.tail = FALSE)   # H3b obese:thinner
+
 
 ##parental body size A-C :(( ----
 # H2_mom <- crude %>% run_polr(
@@ -1034,11 +1059,13 @@ margPre_H2_AWP_raw_res <- run_margins(H2_AWP_raw_res, "AWP_21")
 ###crude----
 H2_parents <- crude %>% run_polr(
   "H2_parents",
-  LS24_cat ~ parentPhys_cat * obe21_bin + LS21_cat
+  LS24_cat ~ obe21_bin*parentPhys_cat + LS21_cat
 )
 nobs(H2_parents)
 
 margPre_H2_parents <- run_margins(H2_parents, "parentPhys_cat")
+broom::tidy(H2_parents, exponentiate = TRUE, conf.int = TRUE)
+
 
 ###restrictive----
 H2_parents_res <- restrictive %>% run_polr(
@@ -1049,6 +1076,13 @@ nobs(H2_parents_res)
 
 margPre_H2_parents_res <- run_margins(H2_parents_res, "parentPhys_cat")
 
+
+2 * pnorm(abs(-5.73450), lower.tail = FALSE)   # H3b obese
+2 * pnorm(abs(-0.84885), lower.tail = FALSE)   # H3b one parent
+2 * pnorm(abs(-1.2362), lower.tail = FALSE)   # H3b both parents
+2 * pnorm(abs(0.51891), lower.tail = FALSE)   # H3b obese:one parent
+2 * pnorm(abs(-0.07788), lower.tail = FALSE)   # H3b obese:both parents
+
 ###raw restrictive----
 ###restrictive----
 H2_parents_raw_res <- raw_res %>% run_polr(
@@ -1058,6 +1092,12 @@ H2_parents_raw_res <- raw_res %>% run_polr(
 nobs(H2_parents_raw_res)
 
 margPre_H2_parents_raw_res <- run_margins(H2_parents_raw_res, "parentPhys_cat")
+
+2 * pnorm(abs(-5.53761), lower.tail = FALSE)   # H3b obese
+2 * pnorm(abs(-0.70791), lower.tail = FALSE)   # H3b one parent
+2 * pnorm(abs(-1.32404), lower.tail = FALSE)   # H3b both parents
+2 * pnorm(abs(0.33290), lower.tail = FALSE)   # H3b obese:one parent
+2 * pnorm(abs(-0.05571), lower.tail = FALSE)   # H3b obese:both parents
 
 # H2_momPhys <- crude %>% run_polr(
 #   "H2_momPhys",
@@ -1830,22 +1870,43 @@ typAdult_bin_crude <- crude %>% run_polr(
 nobs(typAdult_bin_crude)
 margPre_typAdult_bin_crude <- run_margins(typAdult_bin_crude, "typAdult_bin")
 
+##Main effectmode
+typAdult_bin_crude_main <- crude %>% run_polr(
+  "typAdult_bin",
+  LS24_cat ~ typAdult_bin + LS21_cat + BMI_21
+)
+nobs(typAdult_bin_crude_main)
+margPre_typAdult_bin_crude_main <- run_margins(typAdult_bin_crude_main, "typAdult_bin")
+
+
+2 * pnorm(abs(-1.473), lower.tail = FALSE)   # H3a bin_obese
+
+
+
 plot_margins(
   margPre_typAdult_bin_crude, "typAdult_bin",
   x_label = "Adulthood weight perception-status typology",
   title = "Predicted probability of life satisfaction (2024) by adulthood weight perception-status typology"
 )
 ###restrictive----
-##interaction model: BMI * typAdult_bin----
+####interaction----
 typAdult_bin_res <- restrictive %>% run_polr(
   "typAdult_bin_res",
   LS24_cat ~ BMI_21 * typAdult_bin + LS21_cat
 )
 nobs(typAdult_bin_res)
-
 margPre_typAdult_bin_res <- run_margins(typAdult_bin_res, "typAdult_bin")
 
 
+####main effect----
+typAdult_bin_res_mainEffect <- restrictive %>% run_polr(
+  "typAdult_bin_res_mainEffect",
+  LS24_cat ~ typAdult_bin + LS21_cat + BMI_21
+)
+nobs(typAdult_bin_res_mainEffect)
+
+
+2 * pnorm(abs(-1.507), lower.tail = FALSE)
 
 
 
@@ -2044,12 +2105,29 @@ H3_m1 <- crude %>% run_polr(
   LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed
 )
 nobs(H3_m1)
+margPre_H3_m1 <- run_margins(H3_m1, "obe21_bin")
+
+H3_m1_res <- restrictive %>% run_polr(
+  "H3_m1_res",
+  LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed
+)
+nobs(H3_m1_res)
+margPre_H3_m1_res <- run_margins(H3_m1_res, "obe21_bin")
+
 
 H3_m2 <- crude %>% run_polr(
   "H3_m2",
   LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + diplUd_21_bin
 )
 nobs(H3_m2)
+margPre_H3_m2 <- run_margins(H3_m2, "obe21_bin")
+
+H3_m2_res <- restrictive %>% run_polr(
+  "H3_m2_res",
+  LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + diplUd_21_bin
+)
+nobs(H3_m2_res)
+margPre_H3_m2_res <- run_margins(H3_m2_res, "obe21_bin")
 
 
 H3_m3 <- crude %>% run_polr(
@@ -2057,12 +2135,67 @@ H3_m3 <- crude %>% run_polr(
   LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + diplUd_21_bin + obeInh_24
 )
 nobs(H3_m3)
+margPre_H3_m3 <- run_margins(H3_m3, "obe21_bin")
+
+
 
 H3_m4 <- crude %>% run_polr(
   "H3_m4",
   LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + diplUd_21_bin + obeInh_24 + parentPhys_cat
 )
 nobs(H3_m4)
+
+##comparing crude adjusted and model 3----
+library(dplyr)
+library(ggplot2)
+
+# Build combined data frame from your two marginal prediction objects
+combined <- bind_rows(
+  margPre_H1_crudeAdj %>% 
+    mutate(model = "H1: Baseline LS adjusted"),
+  margPre_H3_m3 %>% 
+    mutate(model = "H4 Model 3: Fully adjusted")
+) %>%
+  mutate(
+    group = factor(group, 
+                   levels = c("dissatisfied", "neutral", "satisfied")),
+    obe21_bin = factor(obe21_bin, 
+                       levels = c("non-obese", "obese")),
+    model = factor(model, 
+                   levels = c("H1: Baseline LS adjusted",
+                              "H4 Model 3: Fully adjusted"))
+  )
+
+# Faceted line plot by LS outcome category
+ggplot(combined, 
+       aes(x = obe21_bin, 
+           y = estimate, 
+           color = model, 
+           group = model)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 2.5) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                width = 0.1, linewidth = 0.5, alpha = 0.6) +
+  facet_wrap(~group, scales = "free_y",
+             labeller = labeller(group = c(
+               dissatisfied = "Dissatisfied",
+               neutral = "Neutral", 
+               satisfied = "Satisfied"
+             ))) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
+  scale_color_manual(values = c(
+    "H1: Baseline LS adjusted" = "#366092",
+    "H4 Model 3: Fully adjusted" = "#C0504D"
+  )) +
+  labs(
+    x = "Obesity status (2021)",
+    y = "Predicted probability",
+    color = "Model",
+    title = "Marginal predicted probability of life satisfaction at follow-up by obesity status",
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        strip.text = element_text(face = "bold"))
 
 
 
