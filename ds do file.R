@@ -1192,6 +1192,38 @@ plot_margins(margPre_typlogy_CWP_BMIadj, "typology_adult",
              x_label = "Adulthood weight status-perception typology",
              title = "Predicted probability of life satisfaction (2024) by adulthood weight perception typology, attenuated by baseline BMI (continuous)")
 
+##kappa coefficient----
+install.packages("irr")
+library(irr)
+citation("irr")
+
+# First create a binary or categorical weight status variable
+# that matches the categories of your perception variable
+# For childhood typology: CWP_21 vs BMI category
+
+# Step 1: create comparable categorical variables
+# Your perception variable CWP_21 has: "heavier", "thinner", "no difference"
+# You need to map BMI into the same conceptual categories
+crude <- crude %>%
+  mutate(
+    BMI_21_perc_cat = factor(case_when(
+      BMI_21 >= 30 ~ "heavier",        # obese = objectively heavier
+      BMI_21 >= 18.5 & BMI_21 < 30 ~ "no difference",  # healthy/overweight = reference
+      BMI_21 < 18.5 ~ "thinner"        # underweight = objectively thinner
+    ), levels = c("no difference", "heavier", "thinner"))
+  )
+
+# Step 2: run kappa
+kappa_AWP <- kappa2(
+  cbind(as.character(crude$BMI_21_perc_cat),
+        as.character(crude$AWP_21)),
+  weight = "unweighted"
+)
+
+print(kappa_AWP)
+
+
+
 ##CWP typology ----
 ###crude----
 H2_typology_CWP <- crude %>% run_polr(
@@ -1258,9 +1290,8 @@ plot_margins(margPre_typology_CWP, "typology_child",
              title = "Predicted probability of life satisfaction (2024) by childhood weight perception typology")
 
 
-
-
-#TABLE 1, crude----
+#TABLE 1----
+##crude----
 library(gtsummary)
 table1_gt <- crude %>%
   dplyr::select(BMI_21_label, age_2021_imputed, BMI_21, 
@@ -1298,8 +1329,7 @@ table1_gt %>%
   as_flex_table() %>%
   flextable::save_as_docx(path = "table1.docx")
 
-
-#TABLE 1, restrictive----
+##restrictive----
 restrictive %>%
   dplyr::select(BMI_21_label, age_2021_imputed, BMI_21, 
                 obePersist, CWP_21, parentPhys_cat, obeInh_24, diplUd_21) %>%
@@ -1324,6 +1354,32 @@ restrictive %>%
   modify_spanning_header(all_stat_cols() ~ "**2021, restrictive**") %>%
   bold_labels()
 nrow(crude)
+
+##raw restrictive----
+raw_res %>%
+  dplyr::select(BMI_21_label, age_2021_imputed, BMI_21, 
+                obePersist, CWP_21, parentPhys_cat, obeInh_24, diplUd_21) %>%
+  tbl_summary(
+    by = BMI_21_label,
+    missing_text = "Missing",
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    label = list(
+      age_2021_imputed ~ "Age",
+      BMI_21 ~ "BMI (kg/m²)",
+      obePersist ~ "Obesity persistence",
+      CWP_21 ~ "Childhood weight perception",
+      parentPhys_cat ~ "Parental body size",
+      obeInh_24 ~ "Family history of overweight (heredity)",
+      diplUd_21 ~ "Attainment of diplomuddannelse"
+    )
+  ) %>%
+  add_overall() %>%
+  modify_spanning_header(all_stat_cols() ~ "**2021, raw restrictive sample**") %>%
+  bold_labels()
+nrow(raw_res)
 
 
 #citation, version, & session info----
@@ -1481,8 +1537,11 @@ print_audit(audit_WSb, "Weight statement B - 2021 (WS_b21)")
 audit_WSc <- summarise_by_var(crude, "WS_c21")
 print_audit(audit_WSc, "Weight statement C - 2021 (WS_c21)")
 
-audit_WSd <- summarise_by_var(crude, "AWP_21")
-print_audit(audit_WSd, "Adulthood weight perception - 2021 (AWP_21)")
+audit_AWP <- summarise_by_var(crude, "AWP_21")
+print_audit(audit_AWP, "Adulthood weight perception - 2021 (AWP_21)")
+
+audit_parentPhys_cat <- summarise_by_var(crude, "parentPhys_cat")
+print_audit(audit_parentPhys_cat, "parental body size - 2021 (parentPhys_cat)")
 
 #16. momPhys_21_large
 audit_momPhys_21_large <- summarise_by_var(crude, "momPhys_21_large")
@@ -1492,6 +1551,7 @@ print_audit(audit_momPhys_21_large, "biological mother's body size at age 40 - 2
 audit_dadPhys_21_large <- summarise_by_var(crude, "dadPhys_21_large")
 print_audit(audit_dadPhys_21_large, "biological father's body size at age 40 - 2021 (dadPhys_21_large")
 
+audit_BMI_cat
 
 ##continuous var---------
 # For continuous vars, we don't stratify by group.
@@ -1730,29 +1790,35 @@ plot_var_heatmap(audit_obePersist,"Obesity persistence (obePersist)")
 plot_var_heatmap(audit_LS21cat,   "LS category 2021 (LS21_cat)")
 plot_var_heatmap(audit_LS24cat,   "LS category 2024 (LS24_cat)")
 
-#NA comparison plot -----
-audit_list <- list(
-  audit_diplUd, 
-  audit_speUd, 
-  audit_mastUd, 
-  audit_kandiUd, 
-  audit_PhD,
-  audit_nightSche, 
-  audit_eveSche, 
-  audit_daySche,
-  audit_lgbt, 
+# #NA comparison plot -----
+# audit_list <- list(
+#   audit_BMI_cat, 
+#   audit_obePersist,
+#   audit_diplUd, 
+#   audit_obeInh,
+#   audit_CWP, 
+#   audit_AWP,
+#   audit_parentPhys_cat,
+#   audit_LS21cat, 
+#   audit_LS24cat
+# )
+
+audit_list_attrition <- list(
+  audit_CWP,
+  audit_WSd,          # this is actually AWP_21 based on your code
   audit_obeInh,
-  audit_CWP, 
-  audit_WCT,
-  audit_WSb, 
-  audit_WSc, 
-  audit_WSd,
-  audit_BMI_cat, 
-  audit_obePersist,
-  audit_LS21cat, 
-  audit_LS24cat,
+  audit_diplUd,
   audit_momPhys_21_large,
   audit_dadPhys_21_large
+)
+
+label_map_attrition <- c(
+  "CWP_21"             = "Childhood weight perception",
+  "AWP_21"             = "Adulthood weight perception",
+  "obeInh_24"          = "Family history of overweight",
+  "diplUd_21"          = "Diploma education",
+  "momPhys_21_large"   = "Mother body size",
+  "dadPhys_21_large"   = "Father body size"
 )
 
 # Takes a named list of audit objects, extracts the NA row from each,
@@ -1772,7 +1838,7 @@ crude_stat_long <- crude_stat %>%
                           "BMI24_mean" = "BMI 2024"
   ))
 
-plot_na_comparison <- function(audit_list) {
+plot_na_comparison <- function(audit_list, label_map_attrition) {
   
   na_data <- bind_rows(audit_list) %>%
     dplyr::filter(response_category == "NA (missing)") %>%
