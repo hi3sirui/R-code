@@ -1222,6 +1222,57 @@ kappa_AWP <- kappa2(
 
 print(kappa_AWP)
 
+##barchart, not included (yet?)----
+# Create the cross-tabulation for AWP
+awp_bmi_plot <- crude %>%
+  filter(!is.na(AWP_21)) %>%
+  mutate(
+    BMI_group = factor(case_when(
+      BMI_21 < 18.5 ~ "Underweight",
+      BMI_21 < 25   ~ "Healthy weight",
+      BMI_21 < 30   ~ "Overweight",
+      BMI_21 >= 30  ~ "Obese"
+    ), levels = c("Underweight", "Healthy weight", 
+                  "Overweight", "Obese")),
+    AWP_21 = factor(AWP_21,
+                    levels = c("thinner", "no difference", "heavier"),
+                    labels = c("Thinner than most",
+                               "Similar to most",
+                               "Heavier than most"))
+  ) %>%
+  group_by(AWP_21, BMI_group) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(prevalence = n / nrow(crude) * 100)
+
+ggplot(awp_bmi_plot,
+       aes(x = AWP_21, y = prevalence, fill = BMI_group)) +
+  geom_bar(stat = "identity",
+           position = position_dodge(width = 0.8),
+           width = 0.7) +
+  scale_fill_manual(values = c(
+    "Underweight"   = "#A8C5DA",
+    "Healthy weight" = "#366092",
+    "Overweight"    = "#C0504D",
+    "Obese"         = "#7F0000"
+  )) +
+  geom_text(aes(label = round(prevalence, 1)),
+            position = position_dodge(width = 0.8),
+            vjust = -0.5, size = 3) +
+  scale_y_continuous(limits = c(0, 50),
+                     labels = scales::label_number(suffix = "%")) +
+  labs(
+    x = "Perceived weight in adulthood (AT)",
+    y = "Prevalence (%)",
+    fill = "BMI (baseline)",
+    title = "Perceived vs actual weight status",
+    subtitle = "Crude sample (n = 17,174)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(size = 10)
+  )
+
 
 
 ##CWP typology ----
@@ -1237,6 +1288,84 @@ plot_margins(margPre_H2_typology_CWP, "typology_child",
              x_label = "Childhood weight status-perception typology",
              title = "Predicted probability of life satisfaction (2024) by childhood weight perception typology, crude sample")
 
+
+##forest plot?----
+library(ggplot2)
+library(dplyr)
+library(tibble)
+
+ct_data <- tibble(
+  group = factor(
+    c("Concordant healthy (reference)",
+      "Concordant heavy",
+      "Over-perceiver",
+      "Under-perceiver"),
+    levels = c("Under-perceiver",
+               "Over-perceiver",
+               "Concordant heavy",
+               "Concordant healthy (reference)")
+  ),
+  OR    = c(1.000, 0.682, 0.839, 0.643),
+  lower = c(NA,    0.559, 0.714, 0.567),
+  upper = c(NA,    0.837, 0.989, 0.730),
+  is_ref = c(TRUE, FALSE, FALSE, FALSE)
+) %>%
+  mutate(
+    label = ifelse(is_ref,
+                   "1.00",
+                   paste0(round(OR, 2), " (",
+                          round(lower, 2), "\u2013",
+                          round(upper, 2), ")"))
+  )
+
+ggplot(ct_data, aes(x = OR, y = group)) +
+  # CI bars for non-reference rows only
+  geom_errorbarh(
+    data = filter(ct_data, !is_ref),
+    aes(xmin = lower, xmax = upper),
+    height = 0.2, linewidth = 0.7,
+    color = "#366092"
+  ) +
+  # Points — diamond for reference, circle for others
+  geom_point(
+    data = filter(ct_data, is_ref),
+    shape = 18, size = 4, color = "#366092"
+  ) +
+  geom_point(
+    data = filter(ct_data, !is_ref),
+    shape = 16, size = 3, color = "#366092"
+  ) +
+  # Null line at OR = 1
+  geom_vline(
+    xintercept = 1,
+    linetype = "dashed",
+    color = "grey40",
+    linewidth = 0.5
+  ) +
+  # Labels fixed at x = 1.06
+  geom_text(
+    aes(x = 1.06, label = label),
+    hjust = 0, size = 3.2, color = "grey20"
+  ) +
+  scale_x_continuous(
+    limits = c(0.5, 1.6),
+    breaks = c(0.5, 0.7, 0.9, 1.0, 1.1, 1.3)
+  ) +
+  labs(
+    x = "Odds ratio (95% CI)",
+    y = NULL,
+    title = "Childhood weight status-perception typology",
+    subtitle = "Association with life satisfaction at follow-up (n = 16,981)"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.y  = element_text(size = 10),
+    axis.title.y = element_blank(),
+    panel.grid.major.x = element_line(color = "grey92",
+                                      linewidth = 0.4),
+    plot.title    = element_text(face = "bold", size = 12),
+    plot.subtitle = element_text(size = 10, color = "grey40")
+  )
 
 ###restrictive----
 H2_typology_CWP_res <- restrictive %>% run_polr(
@@ -1290,44 +1419,75 @@ plot_margins(margPre_typology_CWP, "typology_child",
              title = "Predicted probability of life satisfaction (2024) by childhood weight perception typology")
 
 
+
 #TABLE 1----
 ##crude----
 library(gtsummary)
+library(flextable)
+
 table1_gt <- crude %>%
-  dplyr::select(BMI_21_label, age_2021_imputed, BMI_21, 
-                obePersist, parentPhys_cat, CWP_21, AWP_21, diplUd_21, obeInh_24) %>%
+  dplyr::select(BMI_21_label, age_2021_imputed, BMI_21,
+                LS21, LS24,
+                obePersist, parentPhys_cat, CWP_21, AWP_21,
+                diplUd_21_bin, obeInh_24,
+                typology_child, typology_adult) %>%
   tbl_summary(
     by = BMI_21_label,
-    missing = "always",
+    missing = "ifany",
     missing_text = "Missing",
     statistic = list(
       all_continuous() ~ "{mean} ({sd})",
       all_categorical() ~ "{n} ({p}%)"
     ),
     label = list(
-      age_2021_imputed ~ "Age",
-      BMI_21 ~ "BMI (kg/m²)",
-      obePersist ~ "Obesity persistence between baseline and follow-up",
-      CWP_21 ~ "Childhood weight perception",
-      AWP_21 ~ "Adulthood weight perception",
-      parentPhys_cat ~ "Parental body size",
-      diplUd_21 ~ "Attainment of diploma education in nursing",
-      obeInh_24 ~ "Family history of overweight (heredity)"
+      age_2021_imputed ~ "Age (years)",
+      BMI_21          ~ "BMI (kg/m²)",
+      LS21            ~ "Life satisfaction at baseline (2021)",
+      LS24            ~ "Life satisfaction at follow-up (2024)",
+      obePersist      ~ "Obesity persistence between baseline and follow-up",
+      CWP_21          ~ "Childhood weight perception",
+      AWP_21          ~ "Adulthood weight perception",
+      parentPhys_cat  ~ "Parental body size at age 40",
+      diplUd_21_bin   ~ "Attainment of nursing diploma education",
+      obeInh_24       ~ "Family history of overweight",
+      typology_child  ~ "Childhood weight status-perception typology (CT)",
+      typology_adult  ~ "Adulthood weight status-perception typology (AT)"
     ),
     percent = "column",
-    type = list(diplUd_21 ~ "categorical",
-                obeInh_24 ~ "categorical"),
-    value = list(diplUd_21 ~ "yes")
+    type = list(
+      diplUd_21_bin ~ "categorical",
+      obeInh_24     ~ "categorical"
+    ),
+    value = list(
+      diplUd_21_bin ~ "yes",
+      obeInh_24     ~ "yes"
+    )
+  ) %>%
+  add_p(
+    test = list(
+      all_continuous()  ~ "kruskal.test",
+      parentPhys_cat    ~ "fisher.test",
+      typology_adult    ~ "fisher.test",
+      typology_child    ~ "fisher.test",
+      all_categorical() ~ "chisq.test"
+    ),
+    test.args = list(
+      parentPhys_cat = list(simulate.p.value = TRUE),
+      typology_adult = list(simulate.p.value = TRUE),
+      typology_child = list(simulate.p.value = TRUE)
+    ),
+    pvalue_fun = function(x) style_pvalue(x, digits = 3)
   ) %>%
   add_overall() %>%
-  modify_spanning_header(all_stat_cols() ~ "**BMI categories, crude sample**") %>%
+  modify_spanning_header(
+    all_stat_cols() ~ "**BMI categories, crude sample**"
+  ) %>%
   bold_labels()
-View(table1_gt)
 
-library(flextable)
+# Save to Word
 table1_gt %>%
   as_flex_table() %>%
-  flextable::save_as_docx(path = "table1.docx")
+  flextable::save_as_docx(path = "table1_revised.docx")
 
 ##restrictive----
 restrictive %>%
@@ -2211,6 +2371,15 @@ H3_m4 <- crude %>% run_polr(
 )
 nobs(H3_m4)
 
+h4_vif_proxy <- glm(
+  as.numeric(LS21_cat) ~ obe21_bin + age_2021_imputed + diplUd_21_bin + obeInh_24 + LS21_cat,
+  data = crude,
+  family = gaussian
+)
+
+library(car)
+vif(h4_vif_proxy)
+
 ##comparing crude adjusted and model 3----
 library(dplyr)
 library(ggplot2)
@@ -2282,6 +2451,53 @@ crude %>%
     n = n(),
     wishes_to_change_pct = round(
       sum(WCT_21_bin == "wishes to change", na.rm = TRUE) / n * 100, 1)
+  )
+
+##forest plot----
+library(ggplot2)
+library(dplyr)
+
+# Build the H4 sequential model data frame
+h4_data <- tibble(
+  model = factor(c("Model 0\n(H1 baseline)",
+                   "Model 1\n(+ age)",
+                   "Model 2\n(+ diploma)",
+                   "Model 3\n(+ family history)"),
+                 levels = c("Model 3\n(+ family history)",
+                            "Model 2\n(+ diploma)",
+                            "Model 1\n(+ age)",
+                            "Model 0\n(H1 baseline)")),
+  OR    = c(0.664, 0.670, 0.670, 0.701),
+  lower = c(0.595, 0.601, 0.601, 0.626),
+  upper = c(0.743, 0.749, 0.749, 0.787)
+)
+
+ggplot(h4_data, aes(x = OR, y = model)) +
+  geom_point(size = 3, color = "#366092") +
+  geom_errorbarh(aes(xmin = lower, xmax = upper),
+                 height = 0.2, linewidth = 0.7,
+                 color = "#366092") +
+  geom_vline(xintercept = 1,
+             linetype = "dashed",
+             color = "grey50",
+             linewidth = 0.5) +
+  geom_vline(xintercept = 0.664,
+             linetype = "dotted",
+             color = "#366092",
+             alpha = 0.4,
+             linewidth = 0.5) +
+  scale_x_continuous(limits = c(0.5, 1.1),
+                     breaks = seq(0.5, 1.1, 0.1)) +
+  labs(
+    x = "Odds ratio (95% CI)",
+    y = NULL,
+    title = "Sequential adjustment of the obesity-LS association",
+    subtitle = "Obesity OR across H4 models, crude sample"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 10),
+    panel.grid.minor = element_blank()
   )
 
 
