@@ -164,7 +164,7 @@ ds <- ds %>%
     TW24_flag = if_else(!is.na(treatedW24) & (treatedW24 < 40 | treatedW24 > 190), "out_of_range", TW24_flag)
   )
 
-
+range(ds$treatedW21, na.rm = TRUE)
 
 
 ###SMD analysis, W21----
@@ -1117,6 +1117,15 @@ parentalSize_AB <- crude %>% run_polr(
   
 )
 nobs(parentalSize_AB)
+margPre_H2_parentalSize_AB <- run_margins(parentalSize_AB, "parentPhys_AB")
+plot_margins(margPre_H2_parentalSize_AB, "parentPhys_AB",
+             x_label = "parental body size: only silhouettes A and B",
+             title = "Predicted probability of life satisfaction (2024) by a stricter classification of large parental body size, crude sample")
+
+2 * pnorm(abs(-1.05701), lower.tail = FALSE)   # H3b one parent
+2 * pnorm(abs(0.03301), lower.tail = FALSE)   # H3b both parents
+2 * pnorm(abs(0.44617), lower.tail = FALSE)   # H3b obese:one parent
+2 * pnorm(abs(-0.6828), lower.tail = FALSE)   # H3b obese:both parents
 
 ###restrictive----
 parentalSize_AB_res <- restrictive %>% run_polr(
@@ -1484,10 +1493,15 @@ table1_gt <- crude %>%
   ) %>%
   bold_labels()
 
+table1_gt
+
+getwd()
+
 # Save to Word
 table1_gt %>%
+  modify_column_unhide(columns = p.value) %>%
   as_flex_table() %>%
-  flextable::save_as_docx(path = "table1_revised.docx")
+  flextable::save_as_docx(path = "table1.docx")
 
 ##restrictive----
 restrictive %>%
@@ -2333,12 +2347,12 @@ H3_m1 <- crude %>% run_polr(
 nobs(H3_m1)
 margPre_H3_m1 <- run_margins(H3_m1, "obe21_bin")
 
-H3_m1_res <- restrictive %>% run_polr(
-  "H3_m1_res",
+H3_m1_rawRes <- raw_res %>% run_polr(
+  "H3_m1_rawRes",
   LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed
 )
-nobs(H3_m1_res)
-margPre_H3_m1_res <- run_margins(H3_m1_res, "obe21_bin")
+nobs(H3_m1_rawRes)
+margPre_H3_m1_rawRes <- run_margins(H3_m1_rawRes, "obe21_bin")
 
 
 H3_m2 <- crude %>% run_polr(
@@ -2348,12 +2362,12 @@ H3_m2 <- crude %>% run_polr(
 nobs(H3_m2)
 margPre_H3_m2 <- run_margins(H3_m2, "obe21_bin")
 
-H3_m2_res <- restrictive %>% run_polr(
-  "H3_m2_res",
+H3_m2_rawRes <- raw_res %>% run_polr(
+  "H3_m2_rawRes",
   LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + diplUd_21_bin
 )
-nobs(H3_m2_res)
-margPre_H3_m2_res <- run_margins(H3_m2_res, "obe21_bin")
+nobs(H3_m2_rawRes)
+margPre_H3_m2_rawRes <- run_margins(H3_m2_rawRes, "obe21_bin")
 
 
 H3_m3 <- crude %>% run_polr(
@@ -2362,6 +2376,13 @@ H3_m3 <- crude %>% run_polr(
 )
 nobs(H3_m3)
 margPre_H3_m3 <- run_margins(H3_m3, "obe21_bin")
+
+H3_m3_rawRes <- raw_res %>% run_polr(
+  "H3_m3_rawRes",
+  LS24_cat ~ obe21_bin + LS21_cat + age_2021_imputed + diplUd_21_bin + obeInh_24
+)
+nobs(H3_m3_rawRes)
+margPre_H3_m3_rawRes <- run_margins(H3_m3_rawRes, "obe21_bin")
 
 
 
@@ -2379,6 +2400,10 @@ h4_vif_proxy <- glm(
 
 library(car)
 vif(h4_vif_proxy)
+
+
+
+
 
 ##comparing crude adjusted and model 3----
 library(dplyr)
@@ -2509,5 +2534,70 @@ teenPerc <- crude %>% run_polr(
   LS24_cat ~ obe21_bin * WS_b21 + LS21_cat
 )
 
+##CWP and parental obesity----
+# Association between CWP and parental body size
+# Purpose: examine whether perceived childhood weight was
+# associated with parental body size — two effect modifiers
+# that may share variance and inform each other's interpretation
+
+library(tidyverse)
+
+# --- 1. Contingency table: counts ---
+cwp_parent_sample <- crude %>%
+  filter(!is.na(CWP_21) & !is.na(parentPhys_cat))
+
+cwp_parent_tab <- table (
+  CWP = cwp_parent_sample$CWP_21,
+  Parental_size = cwp_parent_sample$parentPhys_cat
+)
+print(cwp_parent_tab)
+
+# --- 2. Column proportions:
+# "Among those with neither/one/both large parents,
+#  what % perceived themselves as heavier/thinner/no difference?"
+round(prop.table(cwp_parent_tab, margin = 2) * 100, 1)
+
+# --- 3. Chi-squared test ---
+chisq_result <- chisq.test(cwp_parent_tab)
+print(chisq_result)
+
+# Check expected cell counts — all should be >= 5
+# If not, interpret chi-squared with caution
+chisq_result$expected
+
+# --- 4. Cramér's V (effect size for chi-squared) ---
+# Benchmarks: < 0.10 negligible | 0.10–0.30 small |
+#             0.30–0.50 moderate | > 0.50 large
+n   <- sum(cwp_parent_tab)
+k   <- min(dim(cwp_parent_tab))   # smaller of rows/columns
+V   <- sqrt(chisq_result$statistic / (n * (k - 1)))
+cat("Cramér's V:", round(V, 3), "\n")
+
+# --- 5. Visualisation ---
+as.data.frame(cwp_parent_tab) %>%
+  group_by(Parental_size) %>%
+  mutate(prop = Freq / sum(Freq)) %>%
+  ggplot(aes(x = Parental_size, y = prop, fill = CWP)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(
+    aes(label = scales::percent(prop, accuracy = 0.1)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.4, size = 3
+  ) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_fill_manual(values = c(
+    "no difference" = "#366092",
+    "heavier"       = "#C0504D",
+    "thinner"       = "#9BB8D4"
+  )) +
+  labs(
+    title    = "Childhood weight perception by parental body size",
+    subtitle = "Column proportions within each parental body size group",
+    x        = "Parental body size",
+    y        = "Proportion",
+    fill     = "Childhood weight\nperception"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
 
 
