@@ -7,8 +7,6 @@ ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
 
 test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
 # test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
-test %>%
-  count(weight_change_k)
 
 #PREP----
 ds <- ds %>%
@@ -17,8 +15,8 @@ ds <- ds %>%
          W21 = weight_k,
          waist21 = waist_k,
          CWP_21 = weight_statements_a_k,
-         WS_b21 = weight_statements_b_k,
-         WS_c21 = weight_statements_c_k,
+         adolWP21 = weight_statements_b_k,
+         youngAWP21 = weight_statements_c_k,
          AWP_21 = weight_statements_d_k,
          WCT_21 = weight_change_k,
          momPhys_21 = physique_mom_k,
@@ -465,10 +463,19 @@ ds <- ds %>%
 #teenage years weight perception----
 ds <- ds %>%
   mutate(
-    WS_b21 = factor(case_when(
-      WS_b21 == 1 ~ "heavier",
-      WS_b21 == 2 ~ "thinner",
-      WS_b21 == 3 ~ "no difference"
+    adolWP21 = factor(case_when(
+      adolWP21 == 1 ~ "heavier",
+      adolWP21 == 2 ~ "thinner",
+      adolWP21 == 3 ~ "no difference"
+    ), levels = c("no difference", "heavier", "thinner"))
+  )
+
+ds <- ds %>%
+  mutate(
+    youngAWP21  = factor(case_when(
+      youngAWP21 == 1 ~ "heavier",
+      youngAWP21 == 2 ~ "thinner",
+      youngAWP21 == 3 ~ "no difference"
     ), levels = c("no difference", "heavier", "thinner"))
   )
 
@@ -555,13 +562,29 @@ restrictive <- ds %>%
     !is.na(AWP_21),
     !is.na(momPhys_21),
     !is.na(dadPhys_21),
-    !is.na(diplUd_21),
+    !is.na(diplUd_21_bin),
     !is.na(obeInh_24),
     !is.na(age_2021_imputed)
   )
 nrow(restrictive)
 
 
+## raw restrictive ----
+raw_restrictive <- ds %>%
+  filter(
+    !is.na(BMI_21),
+    !is.na(BMI_24),
+    !is.na(LS21),
+    !is.na(LS24),
+    !is.na(CWP_21),
+    !is.na(AWP_21),
+    !is.na(momPhys_21),
+    !is.na(dadPhys_21),
+    !is.na(diplUd_21),
+    !is.na(obeInh_24),
+    !is.na(age_2021_imputed)
+  )
+nrow(raw_restrictive)
 
 
 
@@ -689,6 +712,11 @@ H1_res <- restrictive %>% run_polr(
 nobs(H1_res)
 margPre_H1_res <- run_margins(H1_res, "obe21_bin")
 
+H1_raw_res <- raw_restrictive %>% run_polr(
+  "H1_raw_res",
+  LS24_cat ~ obe21_bin
+)
+nobs(H1_raw_res)
 
 ###adjusted----
 H1_resAdj <- restrictive %>% run_polr(
@@ -705,9 +733,28 @@ plot_margins(margPred_H1_resAdj, "obe21_bin",
 
 
 
+##raw restrictive----
+H1_raw_res <- restrictive %>% run_polr(
+  "H1_raw_res",
+  LS24_cat ~ obe21_bin
+)
+nobs(H1_raw_res)
+margPre_H1_raw <- run_margins(H1_raw_res, "obe21_bin")
 
 
 
+###adjusted----
+H1_raw_resAdj <- raw_restrictive %>% run_polr(
+  "H1_raw_resAdj",
+  LS24_cat ~ obe21_bin + LS21_cat
+)
+nobs(H1_raw_resAdj)
+margPred_H1_resAdj <- run_margins(H1_raw_resAdj, "obe21_bin")
+
+
+plot_margins(margPred_H1_resAdj, "obe21_bin",
+             x_label = "Obesity Status (2021)",
+             title = "Predicted probability of life satisfaction (2024) by obesity status, raw restrictive sample")
 
 
 
@@ -724,17 +771,22 @@ H2_severity <- crude %>% run_polr(
 nobs(H2_severity)
 margPre_H2_severity <- run_margins(H2_severity, "BMI_21_label")
 
-###restrictive----
-H2_severity_res <- restrictive %>% run_polr(
-  "H2_severity_res",
+
+
+###restrictive
+H2_severity
+
+###raw restrictive----
+H2_severity_raw_res <- restrictive %>% run_polr(
+  "H2_severity_raw_res",
   LS24_cat ~ BMI_21_label + LS21_cat
 )
-margPre_H2_severity_res <- run_margins(H2_severity_res, "BMI_21_label")
+margPre_H2_severity_raw_res <- run_margins(H2_severity_raw_res, "BMI_21_label")
 
 plot_margins(
-  margPre_H2_severity, "BMI_21_label",
+  margPre_H2_severity_raw_res, "BMI_21_label",
   x_label = "BMI category (2021)",
-  title = "Predicted life satisfaction category (2024) by BMI category"
+  title = "Predicted life satisfaction category (2024) by BMI category, raw restrictive sample"
 )
 
 
@@ -1131,11 +1183,21 @@ restrictive %>%
 nrow(crude)
 
 
-#citation, version, & session info----
-# citation()
-# version$version.string
-# citation("")
-# packageVersion("")
+#CITATION, version, & session info----
+citation()
+citation("MASS")
+citation("dplyr")
+citation("gtsummary")
+citation("tidyverse")
+citation("brant")
+citation("marginaleffects")
+citation("ggplot2")
+citation("flextable")
+citation("tidyr")
+citation("smd")
+
+
+packageVersion("")
 # sessionInfo()
 
 #descriptive stat by covariates----
@@ -1922,5 +1984,42 @@ teenPerc <- crude %>% run_polr(
   LS24_cat ~ obe21_bin * WS_b21 + LS21_cat
 )
 
+##Weight perception life course pattern frequency table ----
+wp_patterns <- wp_patterns %>%
+  mutate(
+    lc_wp_typology = case_when(
+      
+      # Reference: never heavier at any stage
+      wp_pattern == "0000" ~ "never",
+      
+      # Adult onset only: heavier at 25+ only
+      wp_pattern == "0001" ~ "adult onset only",
+      
+      # Early/mid onset, not persisting into adulthood (25+ = 0)
+      wp_pattern %in% c("1000", "0100", "0010",
+                        "1100", "0110", "1010") ~ "onset before adulthood, not persisting",
+      
+      # Onset before adulthood, persisting into adulthood (25+ = 1)
+      wp_pattern %in% c("0011", "0111", "1111",
+                        "1001", "0101", "1011",
+                        "1101", "1110") ~ "onset before adulthood, persisting",
+      
+      # Missing: any item missing
+      is.na(wp_pattern) ~ NA_character_
+    ),
+    lc_wp_typology = factor(
+      lc_wp_typology,
+      levels = c("never",
+                 "adult onset only",
+                 "onset before adulthood, not persisting",
+                 "onset before adulthood, persisting")
+    )
+  )
 
+
+as.data.frame(
+  wp_patterns %>%
+    count(lc_wp_typology, name = "n") %>%
+    mutate(pct = round(n / sum(n) * 100, 2))
+)
 
