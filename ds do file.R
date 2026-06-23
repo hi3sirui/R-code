@@ -1,13 +1,12 @@
 library(dplyr)
 
-# ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+# ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
 # crude <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 # restrictive <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 
 test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
 # test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
-# test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
 View(test)
 
 
@@ -2662,3 +2661,109 @@ as.data.frame(
     mutate(pct = round(n / sum(n) * 100, 2))
 )
 
+###age cut off at 65?----
+
+table(cut(crude$age_2021_imputed, 
+          breaks = c(0, 50, 65, Inf), 
+          labels = c("under 50", "50 to 64", "65 and above")))
+
+class(crude$BMI_21)
+summary(crude$BMI_21)
+
+# ── Step 1: compute BMI z-score within the analytical sample ──────────────
+
+crude <- crude %>%
+  mutate(
+    BMI_zscore = (BMI_21 - mean(BMI_21, na.rm = TRUE)) / sd(BMI_21, na.rm = TRUE)
+  )
+
+# sanity check
+mean(crude$BMI_zscore, na.rm = TRUE)   # should be ~0
+sd(crude$BMI_zscore, na.rm = TRUE)     # should be ~1
+
+# ── Step 2: run the model ─────────────────────────────────────────────────
+
+H_BMIz_age_simple <- crude %>% run_polr(
+  "H_BMIz_age_simple",
+  LS24_cat ~ obe21_bin + BMI_zscore * age_2021_imputed + LS21_cat
+)
+
+library(MASS)
+
+# Refit the model directly with polr
+H_BMIz_age_polr <- polr(
+  LS24_cat ~ obe21_bin + BMI_zscore * age_2021_imputed + LS21_cat,
+  data   = crude,
+  Hess   = TRUE,
+  method = "logistic"
+)
+
+# Confirm it is the right class
+class(H_BMIz_age_polr)
+
+summary(crude$age_2021_imputed)
+max(crude$age_2021_imputed, na.rm = TRUE)
+
+crude %>%
+  filter(age_2021_imputed > 80) %>%
+  count()
+
+
+####visualization----
+library(ggplot2)
+library(tidyr)
+
+# Step 1: create prediction grid
+age_seq <- seq(min(crude$age_2021_imputed, na.rm = TRUE),
+               max(crude$age_2021_imputed, na.rm = TRUE),
+               length.out = 100)
+
+pred_grid <- expand.grid(
+  age_2021_imputed = age_seq,
+  obe21_bin        = levels(crude$obe21_bin),
+  BMI_zscore       = 0,
+  LS21_cat         = "neutral"
+)
+
+# Step 2: predicted probabilities
+pred_probs <- predict(H_BMIz_age_polr,
+                      newdata = pred_grid,
+                      type    = "probs")
+
+pred_df <- cbind(pred_grid, pred_probs)
+
+# Step 3: reshape to long format
+pred_long <- pred_df %>%
+  pivot_longer(
+    cols      = c("dissatisfied", "neutral", "satisfied"),
+    names_to  = "LS_category",
+    values_to = "probability"
+  )
+
+# Step 4: plot
+ggplot(pred_long,
+       aes(x        = age_2021_imputed,
+           y        = probability,
+           color    = obe21_bin,
+           linetype = obe21_bin)) +
+  geom_smooth(se     = TRUE,
+              method = "loess",
+              span   = 0.5) +
+  facet_wrap(~ LS_category) +
+  scale_color_manual(values = c("non-obese" = "#2166ac",
+                                "obese"     = "#d6604d")) +
+  labs(
+    x        = "Age at baseline (years)",
+    y        = "Predicted probability",
+    color    = "Obesity status",
+    linetype = "Obesity status",
+    title    = "Predicted probability of life satisfaction across age",
+    subtitle = "BMI z-score fixed at sample mean, baseline LS fixed at neutral"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+##hereditary thinness?----
+crude %>%
+  filter(BMI_21_label == "Underweight") %>%
+  count(parentPhys_cat)
