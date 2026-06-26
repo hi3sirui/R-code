@@ -1079,6 +1079,252 @@ nobs(H2_parents)
 margPre_H2_parents <- run_margins(H2_parents, "parentPhys_cat")
 broom::tidy(H2_parents, exponentiate = TRUE, conf.int = TRUE)
 
+library(DescTools)
+
+# Ensure correct factor ordering
+crude <- crude %>%
+  mutate(parentPhys_cat = factor(parentPhys_cat,
+                                 levels = c("neither", "one parent", "both")), obe21_bin = factor(obe21_bin,
+                            levels = c("non-obese", "obese")))
+
+tab_parent_obe <- table(crude$parentPhys_cat, crude$obe21_bin)
+print(tab_parent_obe)
+
+prop.table(tab_parent_obe, margin = 1) %>% round(3)
+chisq.test(tab_parent_obe)
+CochranArmitageTest(tab_parent_obe)
+
+# library(ggplot2)
+# library(dplyr)
+# 
+# # Build summary data from the table output
+# plot_data <- crude %>%
+#   filter(!is.na(parentPhys_cat) & !is.na(obe21_bin)) %>%
+#   mutate(parentPhys_cat = factor(parentPhys_cat,
+#                                  levels = c("neither", "one parent", "both"),
+#                                  labels = c("Neither parent", "One parent", "Both parents"))) %>%
+#   group_by(parentPhys_cat, obe21_bin) %>%
+#   summarise(n = n(), .groups = "drop") %>%
+#   group_by(parentPhys_cat) %>%
+#   mutate(pct = n / sum(n) * 100) %>%
+#   ungroup()
+# 
+# # Stacked bar chart
+# ggplot(plot_data, aes(x = parentPhys_cat, y = pct, fill = obe21_bin)) +
+#   geom_bar(stat = "identity", width = 0.6) +
+#   geom_text(
+#     data = filter(plot_data, obe21_bin == "obese"),
+#     aes(label = paste0(round(pct, 1), "%")),
+#     position = position_stack(vjust = 0.5),
+#     color = "white",
+#     fontface = "bold",
+#     size = 4.2
+#   ) +
+#   scale_fill_manual(
+#     values = c("non-obese" = "#4575b4", "obese" = "#d73027"),
+#     labels = c("non-obese" = "Non-obese", "obese" = "Obese"),
+#     name   = "Obesity status\nat baseline"
+#   ) +
+#   scale_y_continuous(labels = function(x) paste0(x, "%"),
+#                      expand = c(0, 0),
+#                      limits = c(0, 105)) +
+#   labs(
+#     title    = "Obesity prevalence at baseline by parental body size",
+#     subtitle = paste0("Crude sample (N = ", 
+#                       sum(!is.na(crude$parentPhys_cat) & !is.na(crude$obe21_bin)),
+#                       "); Cochran-Armitage trend test: Z = −24.94, p < 0.001"),
+#     x        = "Parental body size (at age 40)",
+#     y        = "Proportion of participants (%)"
+#   ) +
+#   theme_minimal(base_size = 12) +
+#   theme(
+#     plot.title      = element_text(face = "bold", size = 13),
+#     plot.subtitle   = element_text(size = 9, color = "grey50"),
+#     legend.position = "right",
+#     panel.grid.major.x = element_blank(),
+#     panel.grid.minor   = element_blank(),
+#     axis.line.x        = element_line(color = "grey70")
+#   )
+
+# library(ggplot2)
+# library(dplyr)
+# 
+# # Step 1: compute observed prevalence per category for plotting
+# prev_data <- crude %>%
+#   filter(!is.na(parentPhys_cat) & !is.na(obe21_bin)) %>%
+#   mutate(
+#     parentPhys_num = case_when(
+#       parentPhys_cat == "neither"    ~ 0,
+#       parentPhys_cat == "one parent" ~ 1,
+#       parentPhys_cat == "both"       ~ 2
+#     ),
+#     obese_bin = as.integer(obe21_bin == "obese")
+#   )
+# 
+# prevalence_summary <- prev_data %>%
+#   group_by(parentPhys_cat, parentPhys_num) %>%
+#   summarise(
+#     n         = n(),
+#     n_obese   = sum(obese_bin),
+#     prevalence = mean(obese_bin) * 100,
+#     .groups   = "drop"
+#   )
+# 
+# print(prevalence_summary)
+# 
+# # Step 2: logistic regression with numeric ordered predictor
+# model_linear_trend <- glm(
+#   obese_bin ~ parentPhys_num,
+#   data   = prev_data,
+#   family = binomial(link = "logit")
+# )
+# 
+# summary(model_linear_trend)
+# 
+# # Odds ratio and 95% CI per one-category increase
+# exp(coef(model_linear_trend))
+# exp(confint(model_linear_trend))
+# 
+# # Step 3: generate predicted probability curve from the model
+# pred_curve <- data.frame(parentPhys_num = seq(0, 2, by = 0.01))
+# pred_curve$predicted_pct <- predict(model_linear_trend,
+#                                     newdata = pred_curve,
+#                                     type = "response") * 100
+# 
+# # Step 4: plot observed prevalence points with fitted logistic curve
+# ggplot() +
+#   geom_line(data  = pred_curve,
+#             aes(x = parentPhys_num, y = predicted_pct),
+#             color = "#d73027",
+#             linewidth = 0.9) +
+#   geom_point(data = prevalence_summary,
+#              aes(x = parentPhys_num, y = prevalence, size = n),
+#              color = "#d73027",
+#              fill  = "white",
+#              shape = 21,
+#              stroke = 1.8) +
+#   geom_text(data = prevalence_summary,
+#             aes(x = parentPhys_num,
+#                 y = prevalence + 2.5,
+#                 label = paste0(round(prevalence, 1), "%\n(n = ", n, ")")),
+#             size = 3.5,
+#             color = "grey30") +
+#   scale_x_continuous(
+#     breaks = c(0, 1, 2),
+#     labels = c("Neither parent", "One parent", "Both parents")
+#   ) +
+#   scale_y_continuous(
+#     labels = function(x) paste0(x, "%"),
+#     limits = c(0, 55),
+#     expand = c(0, 0)
+#   ) +
+#   scale_size_continuous(range = c(4, 10), guide = "none") +
+#   labs(
+#     title    = "Linear trend in obesity prevalence by parental body size",
+#     subtitle = "Points sized by group n | Fitted logistic regression line",
+#     x        = "Parental body size (at age 40)",
+#     y        = "Obesity prevalence (%)"
+#   ) +
+#   theme_minimal(base_size = 12) +
+#   theme(
+#     plot.title      = element_text(face = "bold", size = 13),
+#     plot.subtitle   = element_text(size = 9, color = "grey50"),
+#     panel.grid.minor       = element_blank(),
+#     panel.grid.major.x     = element_blank()
+#   )
+
+library(ggplot2)
+library(dplyr)
+
+# Step 1: compute observed mean BMI per category
+bmi_summary <- crude %>%
+  filter(!is.na(parentPhys_cat) & !is.na(BMI_21)) %>%
+  mutate(
+    parentPhys_num = case_when(
+      parentPhys_cat == "neither"    ~ 0,
+      parentPhys_cat == "one parent" ~ 1,
+      parentPhys_cat == "both"       ~ 2
+    )
+  ) %>%
+  group_by(parentPhys_cat, parentPhys_num) %>%
+  summarise(
+    n        = n(),
+    mean_BMI = mean(BMI_21, na.rm = TRUE),
+    sd_BMI   = sd(BMI_21,   na.rm = TRUE),
+    se_BMI   = sd_BMI / sqrt(n),
+    .groups  = "drop"
+  )
+
+print(bmi_summary)
+
+# Step 2: linear regression with numeric ordered predictor
+prev_data <- crude %>%
+  filter(!is.na(parentPhys_cat) & !is.na(BMI_21)) %>%
+  mutate(
+    parentPhys_num = case_when(
+      parentPhys_cat == "neither"    ~ 0,
+      parentPhys_cat == "one parent" ~ 1,
+      parentPhys_cat == "both"       ~ 2
+    )
+  )
+
+model_bmi_trend <- lm(BMI_21 ~ parentPhys_num + age_2021_imputed, data = prev_data)
+summary(model_bmi_trend)
+confint(model_bmi_trend)
+
+# Step 3: generate fitted line from model
+pred_curve <- data.frame(parentPhys_num = seq(0, 2, by = 0.01))
+pred_curve$predicted_BMI <- predict(model_bmi_trend, newdata = pred_curve)
+
+# Step 4: plot
+ggplot() +
+  geom_line(data = pred_curve,
+            aes(x = parentPhys_num, y = predicted_BMI),
+            color = "#4575b4",
+            linewidth = 0.9) +
+  geom_errorbar(data = bmi_summary,
+                aes(x    = parentPhys_num,
+                    ymin = mean_BMI - 1.96 * se_BMI,
+                    ymax = mean_BMI + 1.96 * se_BMI),
+                width = 0.05,
+                color = "grey40",
+                linewidth = 0.7) +
+  geom_point(data = bmi_summary,
+             aes(x = parentPhys_num, y = mean_BMI, size = n),
+             color = "#4575b4",
+             fill  = "white",
+             shape = 21,
+             stroke = 1.8) +
+  geom_text(data = bmi_summary,
+            aes(x     = parentPhys_num,
+                y     = mean_BMI + 1.96 * se_BMI + 0.4,
+                label = paste0("Mean = ", round(mean_BMI, 1),
+                               "\n(n = ", n, ")")),
+            size  = 3.5,
+            color = "grey30") +
+  scale_x_continuous(
+    breaks = c(0, 1, 2),
+    labels = c("Neither parent", "One parent", "Both parents"),
+    expand = c(0.15, 0.15)        # padding so "both" point is not clipped
+  ) +
+  scale_y_continuous(
+    limits = c(24, 32),           # raised ceiling from 30 to 32
+    expand = c(0, 0)
+  ) +
+  scale_size_continuous(range = c(4, 10), guide = "none") +
+  labs(
+    title    = "Mean BMI at baseline by parental body size",
+    subtitle = "Points sized by group n | Error bars = 95% CI | Fitted linear regression line",
+    x        = "Parental body size (at age 40)",
+    y        = "Mean BMI (kg/m²)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title         = element_text(face = "bold", size = 13),
+    plot.subtitle      = element_text(size = 9, color = "grey50"),
+    panel.grid.minor   = element_blank(),
+    panel.grid.major.x = element_blank()
+  )
 
 ###restrictive----
 H2_parents_res <- restrictive %>% run_polr(
@@ -2767,3 +3013,38 @@ ggplot(pred_long,
 crude %>%
   filter(BMI_21_label == "Underweight") %>%
   count(parentPhys_cat)
+
+##BMI by z-score----
+library(ggplot2)
+
+# Compute z-score of BMI_21 within the crude sample
+crude <- crude %>%
+  mutate(BMI_21_z = (BMI_21 - mean(BMI_21, na.rm = TRUE)) / 
+           sd(BMI_21, na.rm = TRUE))
+
+# Plot
+ggplot(crude, aes(x = BMI_21_z)) +
+  geom_histogram(aes(y = after_stat(density)),
+                 bins = 60,
+                 fill = "#4575b4",
+                 color = "white",
+                 alpha = 0.85) +
+  geom_vline(xintercept = 0,
+             linetype = "dashed",
+             color = "orange",
+             linewidth = 0.7) +
+  labs(
+    title    = "BMI distribution of crude sample at baseline (2021)",
+    subtitle = paste0("N = ", sum(!is.na(crude$BMI_21)),
+                      "  |  Mean BMI = ",
+                      round(mean(crude$BMI_21, na.rm = TRUE), 1),
+                      " kg/m²  |  SD = ",
+                      round(sd(crude$BMI_21, na.rm = TRUE), 1)),
+    x        = "BMI z-score (standardised within crude sample)",
+    y        = "Density"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title    = element_text(face = "bold", size = 13),
+    plot.subtitle = element_text(size = 9, color = "grey50")
+  )
