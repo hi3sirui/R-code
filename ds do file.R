@@ -1,12 +1,12 @@
 library(dplyr)
 
-ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-# ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+# ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
 # crude <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 # restrictive <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 
-test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-# test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+# test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
+test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
 View(test)
 
 
@@ -165,7 +165,7 @@ ds <- ds %>%
     TW24_flag = if_else(!is.na(treatedW24) & (treatedW24 < 40 | treatedW24 > 190), "out_of_range", TW24_flag)
   )
 
-range(ds$treatedW21, na.rm = TRUE)
+# range(ds$treatedW21, na.rm = TRUE)
 
 
 ###SMD analysis, W21----
@@ -683,10 +683,20 @@ ggplot(crude, aes(x = LS24)) +
   theme_minimal()
 
 
-#H1----
-library(MASS)
-library(tidyverse)
 
+#H1----
+library(ggplot2)
+
+ggplot(crude, aes(x = BMI_21, y = LS24)) +
+  geom_point(alpha = 0.1, size = 0.7, color = "grey40") +
+  geom_smooth(method = "lm", formula = y ~ x, 
+              color = "#4C6B8A", linewidth = 1, se = TRUE) +
+  geom_smooth(method = "lm", formula = y ~ x + I(x^2), 
+              color = "#C9772E", linewidth = 1, se = TRUE, linetype = "dashed") +
+  geom_vline(xintercept = 30, color = "red", linetype = "dotted", linewidth = 0.6) +
+  labs(x = "BMI at baseline", y = "Life satisfaction (0–10 scale)",
+       caption = "Solid line: linear fit. Dashed line: quadratic fit. Red line marks obesity threshold (BMI = 30).") +
+  theme_minimal(base_size = 12)
 ##crude ----
 ###unadjusted----
 H1_crude <- crude %>% run_polr(
@@ -1057,17 +1067,35 @@ margPre_H2_AWP_raw_res <- run_margins(H2_AWP_raw_res, "AWP_21")
 2 * pnorm(abs(0.5559), lower.tail = FALSE)   # H3b obese:heavier
 2 * pnorm(abs(-1.5811), lower.tail = FALSE)   # H3b obese:thinner
 
+table(crude$momPhys_21_large, crude$obe21_bin)
+table(crude$dadPhys_21_large, crude$obe21_bin)
 
+sum(!is.na(crude$momPhys_21_large))
+sum(!is.na(crude$dadPhys_21_large))
+sum(!is.na(crude$parentPhys_cat))
+
+chisq.test(table(crude$momPhys_21_large, crude$obe21_bin))
+chisq.test(table(crude$dadPhys_21_large, crude$obe21_bin))
+
+library(DescTools)
+CramerV(table(crude$momPhys_21_large, crude$obe21_bin))
+CramerV(table(crude$dadPhys_21_large, crude$obe21_bin))
+
+# Check whether the discrepancy is driven by cases with one parent's data present, the other missing
+table(mom_missing = is.na(crude$momPhys_21_large), dad_missing = is.na(crude$dadPhys_21_large))
 ##parental body size A-C :(( ----
-# H2_mom <- crude %>% run_polr(
-#   "H2_mom",
-#   LS24_cat ~ momPhys_21_large * obe21_bin + LS21_cat
-# )
-# 
-# H2_dad <- crude %>% run_polr(
-#   "H2_mom",
-#   LS24_cat ~ dadPhys_21_large * obe21_bin + LS21_cat
-# )
+H2_mom <- crude %>% run_polr(
+  "H2_mom",
+  LS24_cat ~ obe21_bin + momPhys_21_large + LS21_cat
+)
+
+H2_dad <- crude %>% run_polr(
+  "H2_dad",
+  LS24_cat ~ obe21_bin + dadPhys_21_large + LS21_cat
+)
+
+table(crude$parentPhys_cat, crude$obe21_bin)
+chisq.test(crude$parentPhys_cat, crude$obe21_bin)
 
 ###crude----
 H2_parents <- crude %>% run_polr(
@@ -1080,6 +1108,19 @@ margPre_H2_parents <- run_margins(H2_parents, "parentPhys_cat")
 broom::tidy(H2_parents, exponentiate = TRUE, conf.int = TRUE)
 
 library(DescTools)
+
+H2_mom <- crude %>% run_polr(
+  "H2_mom",
+  LS24_cat ~ momPhys_21_large * obe21_bin + LS21_cat
+)
+
+H2_dad <- crude %>% run_polr(
+  "H2_dad",
+  LS24_cat ~ dadPhys_21_large * obe21_bin + LS21_cat
+)
+
+broom::tidy(H2_mom, exponentiate = TRUE, conf.int = TRUE)
+broom::tidy(H2_dad, exponentiate = TRUE, conf.int = TRUE)
 
 # Ensure correct factor ordering
 crude <- crude %>%
