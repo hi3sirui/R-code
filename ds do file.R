@@ -1,13 +1,13 @@
 library(dplyr)
 
 # ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
+ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v6 - Copy.csv")
 # crude <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 # restrictive <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 
 # test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
 test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
-View(test)
+View(ds)
 
 
 #PREP----
@@ -560,6 +560,7 @@ restrictive <- ds %>%
     !is.na(LS21),
     !is.na(LS24),
     !is.na(CWP_21),
+    !is.na(adolWP21),
     !is.na(AWP_21),
     !is.na(momPhys_21),
     !is.na(dadPhys_21),
