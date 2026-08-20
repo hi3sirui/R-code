@@ -2,12 +2,12 @@ library(dplyr)
 
 # ds <- read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
 ds <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v6 - Copy.csv")
+View(ds)
 # crude <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 # restrictive <- read.csv("C:/Users/SZHA0012/Documents/crude sample.csv")
 
 # test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
-test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v5 - Copy.csv")
-View(ds)
+test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v6 - Copy.csv")
 
 
 #PREP----
@@ -16,27 +16,19 @@ ds <- ds %>%
          H21 = height_k,
          W21 = weight_k,
          waist21 = waist_k,
+         edu = work_k, #edu beyond nursing edu
          CWP_21 = weight_statements_a_k,
          adolWP21 = weight_statements_b_k,
          youngAWP21 = weight_statements_c_k,
          AWP_21 = weight_statements_d_k,
-         WCT_21 = weight_change_k,
          momPhys_21 = physique_mom_k,
          dadPhys_21 = physique_dad_k,
          age_2021 = cpr_alder,
-         speUd_21  = work_b_k1,
-         diplUd_21 = work_b_k2,
-         mastUd_21 = work_b_k3,
-         kandiUd_21 = work_b_k4,
-         PhD = work_b_k5,
          #work: shift type
          daySche_21 = work_schedule_a_k,
          eveSche_21 = work_schedule_b_k,
          nightSche_21 = work_schedule_c_k,
-         #no. of years working a shift type
-         dayScheYrs_21 = day_hours_k,
-         eveScheYrs_21 = evening_hours_k,
-         nightScheYrs_21 = night_hours_k,
+         mixedSche_21 = work_schedule_d_k,
          age_2024 = age,
          LS24 = qol,
          phyHealth_24 = phy_health_v2,
@@ -45,20 +37,12 @@ ds <- ds %>%
          H24 = height_k_v2,
          CWP_24 = weight_statements_a_k_v2,
          AWP_24 = weight_statements_d_k_v2,
-         WCT_24 = weight_change_k_v2,
          momPhys_24 = physique_mom_k_v2,
          dadPhys_24 = physique_dad_k_v2,
-         #shift frequency / wk 
-         eveFreq_24 = eve,
-         nightFreq_24 = night,
-         weekendFreq_24 = weekend,
-         #no. of yrs working a shift type
-         eveScheYrs_24 = evening_hours_k_v2,
-         nightScheYrs_24 = night_hours_k_v2,
-         lgbtID = lbgt,
          famInh_24 = inheritage_icd_v2,
          obeInh_24 = inheritage_icd_v3___5
   )
+
 
 ds <- ds %>%
   mutate(age_2021 = trunc(age_2021),
@@ -304,6 +288,8 @@ ds <- ds %>%
     ), levels = c("Healthy", "Underweight", "Overweight",
                   "Obesity I", "Obesity II", "Obesity III"))
   )
+
+
 ##dichotomize BMI----
 ds <- ds %>%
   mutate(
@@ -316,26 +302,8 @@ ds <- ds %>%
       BMI_24 >= 30 ~ "obese",
       BMI_24 < 30  ~ "non-obese"
     ), levels = c("non-obese", "obese")),
-    
-    ##obesity persistence----
-    obePersist = factor(case_when(
-      obe21_bin == "non-obese" & obe24_bin == "non-obese" ~ "never",
-      obe21_bin == "obese" & obe24_bin == "non-obese" ~ "2021 only",
-      obe21_bin == "non-obese" & obe24_bin == "obese"     ~ "2024 only",
-      obe21_bin == "obese" & obe24_bin == "obese"     ~ "both waves"
-    ), levels = c("never", "2021 only", "2024 only", "both waves"))
-  )
-
-
-#weight change thoughts----
-ds <- ds %>%
-  mutate(
-    WCT_21_bin = factor(case_when(
-      WCT_21 == 1 ~ "lose weight",
-      WCT_21 == 2 | WCT_21 == 3 ~ "gain or no change",
-      TRUE ~ NA_character_
-    ), levels = c("gain or no change", "lose weight"))
     )
+
 
 #parental body size 2021----
 ds <- ds %>%
@@ -355,22 +323,6 @@ ds <- ds %>%
     ), levels = c("neither", "one parent", "both"))
   )
 
-ds <- ds %>%
-  mutate(
-    momPhys_21_AB = case_when(
-      momPhys_21 == 1 | momPhys_21 == 2 ~ "1",
-      momPhys_21 >2 ~ "0"
-    ),
-    dadPhys_21_AB = case_when(
-    dadPhys_21 == 1 | dadPhys_21 == 2 ~ "1",
-    dadPhys_21 > 2 ~ "0"
-    ),
-    parentPhys_AB = factor(case_when(
-      momPhys_21_AB == 1 & dadPhys_21_AB == 1 ~ "both",
-      momPhys_21_AB == 1 | dadPhys_21_AB == 1 ~ "one parent",
-      momPhys_21_AB == 0 & dadPhys_21_AB == 0 ~ "neither"
-    ), levels = c("neither", "one parent", "both"))
-  )
 
 ds <- ds %>%
   mutate(
@@ -382,63 +334,63 @@ ds <- ds %>%
                               labels = c("not large", "large"))
   )
 
-#diploma edu----
+#edu----
 ds <- ds %>%
   mutate(
-    diplUd_21 = factor(diplUd_21,
+    diplUd_21 = factor(edu,
       levels = c(0, 1),
       labels = c("no", "yes")
     )
     )
 
 
+#work schedules----
 ds <- ds %>%
-  mutate(
-    diplUd_21_bin = case_when(
-      diplUd_21 == "yes" ~ "yes",
-      diplUd_21 == "no"  ~ "no",
-      is.na(diplUd_21)   ~ "no",  # checkbox non-response = did not attain
-      TRUE ~ NA_character_
-    ) %>% factor(levels = c("no", "yes"))
+  mutate(daySche_21_grp = factor(case_when(
+    daySche_21 == 1 ~ "yes",
+    daySche_21 == 0 ~ "no"), 
+    levels = c("no", "yes"))
   )
 
-#working night schedule----
 ds <- ds %>%
-  mutate(nightSche_grp = factor(case_when(
+  mutate(nightSche_21_grp = factor(case_when(
     nightSche_21 == 1 ~ "yes",
-    nightSche_21 == 0 ~ "no",
-    is.na(nightSche_21) ~ "no"
-  ), levels = c("no", "yes"))
+    nightSche_21 == 0 ~ "no"), 
+    levels = c("no", "yes"))
   )
 
-#working mixed shift----
 ds <- ds %>%
-  mutate(work_schedule_d_k == factor(case_when(
-    work_schedule_d_k == 1 ~ "yes",
-    work_schedule_d_k == 0 ~ "no",
-    is.na(work_schedule_d_k) ~ "no"
-  ), levels = c("no", "yes")
+  mutate(eveSche_21_grp = factor(case_when(
+    eveSche_21 == 1 ~ "yes",
+    eveSche_21 == 2 ~ "no"),
+    levels = c("no", "yes"))
+    )
+
+ds <- ds %>%
+  mutate(mixedSche_21_grp = factor(case_when(
+    mixedSche_21 == 1 ~ "yes",
+    mixedSche_21 == 0 ~ "no"), 
+    levels = c("no", "yes")
   )
   )
 
-#working anything other than day schedule----
+#work schedule categories----
 ds <- ds %>%
   mutate(
-    dayOnly_21 = factor(
-      if_else(daySche_21 == 1, "day schedule", "other"),
-      levels = c("other","day schedule")
+    workSche_cat = case_when(
+      mixedSche_21_grp == "yes" ~ "rotating",
+      nightSche_21_grp == "yes" ~ "regular night",
+      daySche_21_grp == "yes" | eveSche_21_grp == 1 ~ "regular day-or-eve",
+      TRUE ~ NA_character_
+    ),
+    workSche_cat = factor(
+      workSche_cat,
+      levels = c("regular day-or-eve", "regular night", "rotating")
     )
   )
 
-#working anything other than mixed shift----
-ds <- ds %>%
-  mutate(
-    mixedOnly = factor(
-      if_else(work_schedule_d_k == 1, "mixed schedule", "other"),
-      levels = c( "other", "mixed schedule")
-    )
-  )
-
+# table(ds$workSche_cat, useNA = "ifany")
+# sum(ds$mixedSche_21_grp=="yes", na.rm = TRUE)
 
 #family history of overweight----
 ds <- ds %>%
@@ -448,9 +400,8 @@ ds <- ds %>%
       obeInh_24 == 1 ~ "yes"
     ), levels = c("no", "yes"))
   )
-  
 
-#Childhood weight perception 2021----
+#weight perceptions----
 ds <- ds %>%
   mutate(
     CWP_21 = factor(case_when(
@@ -461,7 +412,6 @@ ds <- ds %>%
     levels = c("no difference", "heavier", "thinner"))
   )
 
-#teenage years weight perception----
 ds <- ds %>%
   mutate(
     adolWP21 = factor(case_when(
@@ -480,7 +430,6 @@ ds <- ds %>%
     ), levels = c("no difference", "heavier", "thinner"))
   )
 
-#Adulthood weight perception in 2021----
 ds <- ds %>%
   mutate(
     AWP_21 = factor(case_when(
@@ -491,33 +440,6 @@ ds <- ds %>%
     levels = c("no difference", "heavier", "thinner"))
   )
 
-
-#Typology----
-##CWP----
-ds <- ds %>%
-  mutate(
-    typology_child = factor(case_when(
-      obe21_bin == "non-obese" & CWP_21 %in% c("no difference", "thinner") ~ "concordant healthy",
-      obe21_bin == "obese"     & CWP_21 == "heavier"        ~ "concordant heavy",
-      obe21_bin == "non-obese" & CWP_21 == "heavier"        ~ "over-perceiver",
-      obe21_bin == "obese"     & CWP_21 == "no difference"  ~ "under-perceiver",
-      obe21_bin == "obese"     & CWP_21 == "thinner"        ~ "under-perceiver"
-    ), levels = c("concordant healthy", "concordant heavy",
-                  "over-perceiver", "under-perceiver"))
-  )
-
-##AWP----
-ds <- ds %>%
-  mutate(
-    typology_adult = factor(case_when(
-      obe21_bin == "non-obese" & AWP_21 %in% c("no difference", "thinner") ~ "concordant healthy",
-      obe21_bin == "obese"     & AWP_21 == "heavier"  ~ "concordant heavy",
-      obe21_bin == "non-obese" & AWP_21 == "heavier" ~ "over-perceiver",
-      obe21_bin == "obese"     & AWP_21 == "no difference" ~ "under-perceiver",
-      obe21_bin == "obese"     & AWP_21 == "thinner" ~ "under-perceiver"
-    ), levels = c("concordant healthy", "concordant heavy",
-                  "over-perceiver", "under-perceiver"))
-  )
 
 #LS----
 ##labels----
@@ -539,7 +461,38 @@ ds <- ds %>%
                       levels = c("dissatisfied", "neutral", "satisfied"), ordered = TRUE)
   )
 
+colnames(ds)
 
+QV <- crude %>%
+  select(
+    cpr_sex,
+    age_2021_imputed,
+    LS21,
+    LS21_label,
+    treatedW21,
+    treatedH21,
+    BMI_21,
+    BMI_21_label,
+    obe21_bin,
+    CWP_21,
+    adolWP21,
+    youngAWP21,
+    AWP_21,
+    momPhys_21,    
+    dadPhys_21,
+    momPhys_21_large,
+    dadPhys_21_large,
+    edu,
+    workSche_cat,
+    LS24,
+    LS24_label,
+    treatedW24,
+    BMI_24,
+    BMI_24_label,
+    obe24_bin,
+    obeInh_24,
+  )
+View(QV)
 
 #sample data set updates----
 ##crude ----
@@ -564,7 +517,7 @@ restrictive <- ds %>%
     !is.na(AWP_21),
     !is.na(momPhys_21),
     !is.na(dadPhys_21),
-    !is.na(diplUd_21_bin),
+    #!is.na(education var)
     !is.na(obeInh_24),
     !is.na(age_2021_imputed)
   )
@@ -698,13 +651,14 @@ ggplot(crude, aes(x = BMI_21, y = LS24)) +
   labs(x = "BMI at baseline", y = "Life satisfaction (0–10 scale)",
        caption = "Solid line: linear fit. Dashed line: quadratic fit. Red line marks obesity threshold (BMI = 30).") +
   theme_minimal(base_size = 12)
+
+
 ##crude ----
 ###unadjusted----
 H1_crude <- crude %>% run_polr(
   "H1_crude",
   LS24_cat ~ obe21_bin
 )
-nobs(H1_crude)
 # install.packages("marginaleffects")
 
 margPre_H1_crude <- run_margins(H1_crude, "obe21_bin")
@@ -713,6 +667,7 @@ plot_margins(margPre_H1_crude, "obe21_bin",
              x_label = "Obesity Status (2021)",
              title = "Predicted life satisfaction category (2024) by obesity status, crude sample"
              )
+summary(H1_crude)
 
 ####adjusted----
 H1_crudeAdj <- crude %>% run_polr(
@@ -780,129 +735,35 @@ plot_margins(margPre_H1_raw_resAdj, "obe21_bin",
              x_label = "Obesity Status (2021)",
              title = "Predicted probability of life satisfaction (2024) by obesity status, raw restrictive sample")
 
-#exploratory----
-##severity: by label, no product term----
-###crude----
-H2_severity <- crude %>% run_polr(
-  "H2_severity",
-  LS24_cat ~ BMI_21_label + LS21_cat
-)
-nobs(H2_severity)
-margPre_H2_severity <- run_margins(H2_severity, "BMI_21_label")
-
-
-###restrictive----
-H2_severity_res <- restrictive %>% run_polr(
-  "H2_severity_res",
-  LS24_cat ~ BMI_21_label + LS21_cat
-)
-nobs(H2_severity_res)
-margPre_H2_severity_res <- run_margins(H2_severity_res, "BMI_21_label")
-
-plot_margins(
-  margPre_H2_severity_res, "BMI_21_label",
-  x_label = "BMI category (2021)",
-  title = "Predicted life satisfaction category (2024) by BMI category, restrictive sample"
-)
-
-###raw restrictive----
-H2_severity_raw_res <- raw_res %>% run_polr(
-  "H2_severity_raw_res",
-  LS24_cat ~ BMI_21_label + LS21_cat
-)
-margPre_H2_severity_raw_res <- run_margins(H2_severity_raw_res, "BMI_21_label")
-
-plot_margins(
-  margPre_H2_severity_raw_res, "BMI_21_label",
-  x_label = "BMI category (2021)",
-  title = "Predicted life satisfaction category (2024) by BMI category, raw restrictive sample"
-)
-
-
-
-plot_margins(
-  margPre_H2_severity, "BMI_21_label",
-  x_label = "BMI category (2021)",
-  title = "Predicted life satisfaction category (2024) by BMI category, crude sample"
-)
-
-
-
-
-##persistence: no product term----
-###crude----
-H2_obePersist <- crude %>% run_polr(
-  "H2_obePersist",
-  LS24_cat ~ obePersist + LS21_cat
-)
-nobs(H2_obePersist)
-margPre_H2_obePersist <- run_margins(H2_obePersist, "obePersist")
-
-plot_margins(margPre_H2_obePersist, "obePersist",
-             x_label = "Obesity persistence",
-             title = "Predicted probability of life satisfaction (2024) by obesity persistence, crude sample")
-
-
-###restrictive----
-H2_obePersist_res <- restrictive %>% run_polr(
-  "H2_obePersist_res",
-  LS24_cat ~ obePersist + LS21_cat
-)
-nobs(H2_obePersist_res)
-margPre_H2_obePersist_res <- run_margins(H2_obePersist_res, "obePersist")
-nobs(H2_obePersist_res)
-
-plot_margins(margPre_H2_obePersist_res, "obePersist",
-             x_label = "Obesity persistence",
-             title = "Predicted probability of life satisfaction (2024) by obesity persistence, restrictive sample")
-
-
-###raw restrictive----
-H2_obPersist_raw_res <- raw_res %>% run_polr(
-  "H2_obPersist_raw_res",
-  LS24_cat ~ obePersist + LS21_cat
-)
-nobs(H2_obPersist_raw_res)
-margPre_H2_obePersist_raw_res <- run_margins(H2_obPersist_raw_res, "obePersist")
-
-plot_margins(margPre_H2_obePersist_raw_res, "obePersist",
-             x_label = "Obesity persistence",
-             title = "Predicted life satisfaction category (2024) by obesity persistence, raw restrictive sample")
-
-
-
-## ##weight change thoughts----
-# ###!!!NOT effect modifier
-# H2_WCT <- crude %>% run_polr(
-#   "H2_WCT",
-#   LS24_cat ~ obe21_bin * WCT_21_bin + LS21_cat
-# )
-# nobs(H2_WCT)
-# margPre_H2_WCT <- run_margins(H2_WCT, "WCT_21_bin")
-# 
-# plot_margins(
-#   margPre_H2_WCT, "WCT_21_bin",
-#   x_label = "Thoughts on changing weight (2021)",
-#   title = "Predicted probability of life satisfaction (2024) by thoughts on changing weight"
-# )
-# 
-# # Is WCT associated with obesity status?
-# table(crude$WCT_21_bin, crude$obe21_bin, useNA = "always")
-# chisq.test(table(crude$WCT_21_bin, crude$obe21_bin))
-# 
-# # Is WCT associated with continuous BMI?
-# crude %>%
-#   group_by(WCT_21_bin) %>%
-#   summarise(
-#     mean_BMI = mean(BMI_21, na.rm = TRUE),
-#     sd_BMI   = sd(BMI_21, na.rm = TRUE),
-#     n        = n()
-#   )
 
 #H2----
-##childhood weight perception ----
-###!!!only heavier----
-###crude----
+##obesity trajectory ----
+crude <- crude %>%
+  mutate(
+    earlyLife_heavier = rowSums(
+      dplyr::select(., CWP_21, adolWP21) == "heavier", na.rm = TRUE
+    ) > 0,
+    
+    ob_trajectory = case_when(
+      !earlyLife_heavier & obe21_bin == "non-obese" ~ "never obese",
+      earlyLife_heavier & obe21_bin == "non-obese" ~ "early-life obesity only",
+      !earlyLife_heavier & obe21_bin == "obese" ~ "adult-onset by 2021",
+      earlyLife_heavier & obe21_bin == "obese" ~ "persistent obesity through 2021",
+      TRUE ~ NA_character_
+    ),
+    ob_trajectory = factor(
+      ob_trajectory,
+      levels = c("never obese", "early-life obesity only", "adult-onset by 2021", "persistent obesity through 2021")
+    )
+  )
+##H2----
+H2_crude <- crude %>%
+  run_polr(
+    "H2_crude",
+    LS24_cat ~ ob_trajectory + age_2021_imputed
+    )
+
+
 H2_CWP <- crude %>% run_polr(
   "H2_CWP",
   LS24_cat ~ obe21_bin * CWP_21 + LS21_cat
