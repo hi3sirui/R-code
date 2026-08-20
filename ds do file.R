@@ -763,6 +763,111 @@ H2_crude <- crude %>%
     LS24_cat ~ ob_trajectory + age_2021_imputed
     )
 
+#H3----
+H3_CWP_21 <- crude %>% run_polr("H3_CWP", LS24_cat ~ obe21_bin * CWP_21)
+H3_AWP_21 <- crude %>% run_polr("H3_AWP", LS24_cat ~ obe21_bin * AWP_21)
+H3_mom_21 <- crude %>% run_polr("H3_mom", LS24_cat ~ obe21_bin * momPhys_21_large)
+H3_dad_21 <- crude %>% run_polr("H3_dad", LS24_cat ~ obe21_bin * dadPhys_21_large)
+
+
+
+#H4----
+H4 <- crude %>% run_polr(
+  "H4",
+  LS24_cat ~ obe21_bin + age_2021_imputed + momPhys_21_large + dadPhys_21_large
+)
+
+ds %>% filter(!is.na(LS21) & !is.na(LS24)) %>% nrow()
+nrow(ds)
+
+#non-participation analysis----
+library(dplyr)
+library(tableone)
+
+## excluded = the eligibility sample (ds), restricted to those who FAIL
+## crude's defining criteria (missing BMI21 or missing LS24)
+excluded <- ds %>%
+  filter(is.na(BMI_21) | is.na(LS24))
+
+## sanity check: these two groups should partition ds exactly, with no overlap and no gaps
+nrow(crude) + nrow(excluded) == nrow(ds)
+
+###excluded 16210----
+build_schedule <- function(df) {
+  df %>%
+    mutate(
+      workSchedule_3cat = case_when(
+        mixedSche_21 == 1 ~ "rotating",
+        nightSche_21 == 1 ~ "regular night",
+        daySche_21 == 1 | eveSche_21 == 1 ~ "regular day-or-evening",
+        TRUE ~ NA_character_
+      )
+    )
+}
+
+crude_tagged    <- build_schedule(crude)    %>% mutate(group = "Crude sample")
+excluded_tagged <- build_schedule(excluded) %>% mutate(group = "Excluded")
+
+compare_df <- bind_rows(crude_tagged, excluded_tagged)
+
+smd_vars <- c("BMI_21", "LS21", "age_2021_imputed", "diplUd_21", "workSchedule_3cat")
+
+tab1 <- CreateTableOne(vars = smd_vars, strata = "group", data = compare_df,
+                       test = FALSE, includeNA = TRUE)
+print(tab1, smd = TRUE)
+
+###reasons of exclusion----
+excluded_reasons <- ds %>%
+  filter(is.na(BMI_21) | is.na(LS24)) %>%
+  mutate(
+    exclusion_reason = case_when(
+      is.na(LS24) & is.na(BMI_21) ~ "Both missing (LS24 and BMI21)",
+      is.na(LS24) & !is.na(BMI_21) ~ "Lost to follow-up only (missing LS24)",
+      !is.na(LS24) & is.na(BMI_21) ~ "Missing/implausible baseline BMI only",
+      TRUE ~ NA_character_
+    )
+  )
+
+table(excluded_reasons$exclusion_reason)
+
+###SMD----
+library(tableone)
+
+excluded_reasons <- ds %>%
+  filter(is.na(BMI_21) | is.na(LS24)) %>%
+  mutate(
+    exclusion_reason = case_when(
+      is.na(LS24) & is.na(BMI_21) ~ "Both missing (LS24 and BMI21)",
+      is.na(LS24) & !is.na(BMI_21) ~ "Lost to follow-up only (missing LS24)",
+      !is.na(LS24) & is.na(BMI_21) ~ "Missing/implausible baseline BMI only",
+      TRUE ~ NA_character_
+    )
+  )
+
+lost_to_followup <- excluded_reasons %>% filter(exclusion_reason == "Lost to follow-up only (missing LS24)")
+missing_exposure  <- excluded_reasons %>% filter(exclusion_reason == "Missing/implausible baseline BMI only")
+
+two_way <- bind_rows(
+  crude %>% mutate(group = "Crude sample"),
+  lost_to_followup %>% mutate(group = "Lost to follow-up")
+)
+
+tab_two <- CreateTableOne(vars = c("age_2021_imputed", "LS21"),
+                          strata = "group", data = two_way, test = FALSE)
+print(tab_two, smd = TRUE)
+
+#※※※※※※※※※※DIVIDER※※※※※※※※※-------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
 
 H2_CWP <- crude %>% run_polr(
   "H2_CWP",
