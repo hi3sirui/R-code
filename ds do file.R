@@ -337,7 +337,7 @@ ds <- ds %>%
 #edu----
 ds <- ds %>%
   mutate(
-    diplUd_21 = factor(edu,
+    edu_21 = factor(edu,
       levels = c(0, 1),
       labels = c("no", "yes")
     )
@@ -461,38 +461,38 @@ ds <- ds %>%
                       levels = c("dissatisfied", "neutral", "satisfied"), ordered = TRUE)
   )
 
-colnames(ds)
-
-QV <- crude %>%
-  select(
-    cpr_sex,
-    age_2021_imputed,
-    LS21,
-    LS21_label,
-    treatedW21,
-    treatedH21,
-    BMI_21,
-    BMI_21_label,
-    obe21_bin,
-    CWP_21,
-    adolWP21,
-    youngAWP21,
-    AWP_21,
-    momPhys_21,    
-    dadPhys_21,
-    momPhys_21_large,
-    dadPhys_21_large,
-    edu,
-    workSche_cat,
-    LS24,
-    LS24_label,
-    treatedW24,
-    BMI_24,
-    BMI_24_label,
-    obe24_bin,
-    obeInh_24,
-  )
-View(QV)
+# colnames(ds)
+# 
+# QV <- crude %>%
+#   select(
+#     cpr_sex,
+#     age_2021_imputed,
+#     LS21,
+#     LS21_label,
+#     treatedW21,
+#     treatedH21,
+#     BMI_21,
+#     BMI_21_label,
+#     obe21_bin,
+#     CWP_21,
+#     adolWP21,
+#     youngAWP21,
+#     AWP_21,
+#     momPhys_21,    
+#     dadPhys_21,
+#     momPhys_21_large,
+#     dadPhys_21_large,
+#     edu,
+#     workSche_cat,
+#     LS24,
+#     LS24_label,
+#     treatedW24,
+#     BMI_24,
+#     BMI_24_label,
+#     obe24_bin,
+#     obeInh_24,
+#   )
+# View(QV)
 
 #sample data set updates----
 ##crude ----
@@ -757,11 +757,15 @@ crude <- crude %>%
     )
   )
 ##H2----
-H2_crude <- crude %>%
+H2_obTraj_crude <- crude %>%
   run_polr(
-    "H2_crude",
+    "H2_obTraj_crude",
     LS24_cat ~ ob_trajectory + age_2021_imputed
     )
+nobs(H2_obTraj_crude)
+margPre_H2_obTraj_crude <- run_margins(H2_obTraj_crude, "ob_trajectory")
+
+
 
 #H3----
 H3_CWP_21 <- crude %>% run_polr("H3_CWP", LS24_cat ~ obe21_bin * CWP_21)
