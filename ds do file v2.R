@@ -736,9 +736,9 @@ margPre_H2_AT_crude <- run_margins(H2_AT_crude, "typology_adult")
 plot_margins(margPre_typology_AWP, "typology_adult",
              x_label = "Adulthood weight status-perception typology",
              title = "Predicted probability of life satisfaction (2024) by adulthood weight status-perception typology, crude sample")
+table(crude$typology_adult, useNA = "ifany")
+table(crude$obe21_bin, crude$AWP_21, useNA = "ifany")
 
-crude %>%
-  count(typology_adult)
 
 ###restrictive----
 H2_AT_res <- restrictive %>% run_polr(
