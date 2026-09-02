@@ -290,7 +290,7 @@ ds <- ds %>%
   )
 
 
-##dichotomize BMI----
+##bin & persistence----
 ds <- ds %>%
   mutate(
     obe21_bin = factor(case_when(
@@ -302,7 +302,17 @@ ds <- ds %>%
       BMI_24 >= 30 ~ "obese",
       BMI_24 < 30  ~ "non-obese"
     ), levels = c("non-obese", "obese")),
+    
+    ## obesity persistence
+    obePersist = factor(case_when(
+      obe21_bin == "non-obese" & obe24_bin == "non-obese" ~ "never",
+      obe21_bin == "obese" & obe24_bin == "non-obese" ~ "2021 only",
+      obe21_bin == "non-obese" & obe24_bin == "obese"     ~ "2024 only",
+      obe21_bin == "obese" & obe24_bin == "obese"     ~ "both waves"
+    ), levels = c("never", "2021 only", "2024 only", "both waves"))
   )
+
+
 
 
 #parental body size 2021----
@@ -441,7 +451,7 @@ ds <- ds %>%
   )
 
 
-#AT
+#AT----
 ds <- ds %>%
   mutate(
     typology_adult = factor(case_when(
@@ -652,7 +662,7 @@ plot_margins <- function(margins_data, x_var, x_label = x_var, title = "") {
 #   theme_minimal(base_size = 12)
 
 
-##crude ----
+#crude ----
 H1_crude <- crude %>% run_polr(
   "H1_crude",
   LS24_cat ~ obe21_bin
@@ -721,6 +731,8 @@ plot_margins(margPre_H1_res, "obe21_bin",
 
 
 #H2----
+##obesity trajectory----
+###crude----
 H2_obTraj_crude <- crude %>%
   run_polr(
     "H2_obTraj_crude",
@@ -728,7 +740,7 @@ H2_obTraj_crude <- crude %>%
   )
 nobs(H2_obTraj_crude)
 margPre_H2_obTraj_crude <- run_margins(H2_obTraj_crude, "ob_trajectory")
-
+###restrictive----
 H2_obTraj_res <- restrictive %>%
   run_polr(
     "H2_obTraj_res",
@@ -736,6 +748,78 @@ H2_obTraj_res <- restrictive %>%
   )
 nobs(H2_obTraj_res)
 margPre_H2_obTraj_res <- run_margins(H2_obTraj_res, "ob_trajectory")
+
+
+
+
+##severity----
+###crude----
+H2_severity_crude <- crude %>% run_polr(
+  "H2_severity_crude",
+  LS24_cat ~ BMI_21_label + age_2021_imputed
+)
+nobs(H2_severity_crude)
+margPre_H2_severity_crude <- run_margins(H2_severity_crude, "BMI_21_label")
+
+###restrictive----
+H2_severity_res <- restrictive %>% run_polr(
+  "H2_severity_res",
+  LS24_cat ~ BMI_21_label + age_2021_imputed
+)
+nobs(H2_severity_res)
+margPre_H2_severity_res <- run_margins(H2_severity_res, "BMI_21_label")
+
+
+
+
+##persistence----
+###crude----
+H2_obePersist_crude <- crude %>% run_polr(
+  "H2_obePersist_crude",
+  LS24_cat ~ obePersist + age_2021_imputed
+)
+nobs(H2_obePersist_crude)
+margPre_H2_obePersist_crude <- run_margins(H2_obePersist_crude, "obePersist")
+
+plot_margins(margPre_H2_obePersist_crude, "obePersist",
+             x_label = "Obesity persistence",
+             title = "Predicted probability of life satisfaction (2024) by obesity persistence, crude sample")
+
+
+###restrictive----
+H2_obePersist_res <- restrictive %>% run_polr(
+  "H2_obePersist_res",
+  LS24_cat ~ obePersist + age_2021_imputed
+)
+nobs(H2_obePersist_res)
+margPre_H2_obePersist_res <- run_margins(H2_obePersist_res, "obePersist")
+nobs(H2_obePersist_res)
+
+
+
+##AT----
+###crude----
+H2_AT_crude <- crude %>% run_polr(
+  "H2_AT_crude",
+  LS24_cat ~ typology_adult + age_2021_imputed
+)
+nobs(H2_AT_crude)
+margPre_H2_AT_crude <- run_margins(H2_AT_crude, "typology_adult")
+
+plot_margins(margPre_typology_AWP, "typology_adult",
+             x_label = "Adulthood weight status-perception typology",
+             title = "Predicted probability of life satisfaction (2024) by adulthood weight status-perception typology, crude sample")
+
+crude %>%
+  count(typology_adult)
+
+###restrictive----
+H2_AT_res <- restrictive %>% run_polr(
+  "H2_AT_res",
+  LS24_cat ~ typology_adult + age_2021_imputed
+)
+nobs(H2_AT_res)
+margPre_H2_AT_res <- run_margins(H2_AT_res, "typology_adult")
 
 
 
