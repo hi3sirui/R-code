@@ -316,11 +316,11 @@ ds <- ds %>%
 #parental body size 2021----
 ds <- ds %>%
   mutate(
-    momPhys_21_large = case_when(
+    momPhys_21_large = factor(case_when(
       momPhys_21 >= 1 & momPhys_21 <= 3 ~ 1,
       momPhys_21 >= 4 & momPhys_21 <= 9 ~ 0
-    ),
-    dadPhys_21_large = case_when(
+    )),
+    dadPhys_21_large = factor(case_when(
       dadPhys_21 >= 1 & dadPhys_21 <= 3 ~ 1,
       dadPhys_21 >= 4 & dadPhys_21 <= 9 ~ 0
     ),
@@ -329,7 +329,7 @@ ds <- ds %>%
     #   momPhys_21_large == 1 | dadPhys_21_large == 1 ~ "one parent",
     #   momPhys_21_large == 0 & dadPhys_21_large == 0 ~ "neither"
     # ), levels = c("neither", "one parent", "both"))
-  )
+  ))
 
 
 ds <- ds %>%
@@ -872,6 +872,49 @@ H3_dad_res <- restrictive %>% run_polr(
 nobs(H3_dad_res)
 margPre_H3_dad_res <- run_margins(H3_dad_res, "dadPhys_21_large")
 
+##***----
+##interaction plot----
+##***----
+library(marginaleffects); library(ggplot2); library(dplyr); library(patchwork)
+
+plot_interaction <- function(model, modifier, modifier_label) {
+  avg_predictions(model,
+                  variables = c("obe21_bin", modifier),
+                  type = "probs") %>%
+    as.data.frame() %>%
+    filter(group == "satisfied") %>%
+    ggplot(aes(x = obe21_bin, y = estimate,
+               colour = .data[[modifier]], group = .data[[modifier]])) +
+    geom_line(linewidth = .8) +
+    geom_point(size = 2.4) +
+    geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                  width = .07, alpha = .45) +
+    scale_y_continuous(limits = c(.60, .95),
+                       labels = scales::percent_format(accuracy = 1)) +
+    labs(x = NULL, y = "Predicted probability of reporting satisfaction", colour = modifier_label) +
+    theme_minimal(base_size = 10) +
+    theme(
+      legend.position   = "bottom",
+      legend.title      = element_text(size = 9),
+      legend.text       = element_text(size = 8),
+      legend.key.width  = unit(.6, "cm"),
+      plot.margin       = margin(5, 12, 5, 5)
+    ) +
+    guides(colour = guide_legend(nrow = 1, title.position = "left"))
+}
+
+p1 <- plot_interaction(H3_CWP_crude, "CWP_21",           "Childhood weight perception")
+p2 <- plot_interaction(H3_AWP_crude, "AWP_21",           "Adulthood weight perception")
+p3 <- plot_interaction(H3_mom_crude, "momPhys_21_large", "Maternal body size")
+p4 <- plot_interaction(H3_dad_crude, "dadPhys_21_large", "Paternal body size")
+
+h3_panels <- (p1 | p2) / (p3 | p4) +
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag = element_text(face = "bold", size = 11))
+h3_panels
+
+ggsave("figure_h3_interactions.png", h3_panels,
+       width = 10, height = 7.5, dpi = 300)
 
 
 #H4----
@@ -989,3 +1032,78 @@ two_way <- bind_rows(
 tab_two <- CreateTableOne(vars = c("age_2021_imputed", "LS21"),
                           strata = "group", data = two_way, test = FALSE)
 print(tab_two, smd = TRUE)
+
+####***----
+####love plots----
+####***----
+smd_df <- tibble(
+  variable = c("Age", "Baseline life satisfaction", "Occupational schedule",
+               "Baseline BMI", "Education beyond nursing"),
+  smd = c(0.386, 0.126, 0.072, 0.047, 0.031)
+) %>% mutate(variable = reorder(variable, smd))
+
+ggplot(smd_df, aes(smd, variable)) +
+  geom_vline(xintercept = 0.1, linetype = "dashed", colour = "grey50") +
+  geom_segment(aes(x = 0, xend = smd, yend = variable), colour = "grey75") +
+  geom_point(size = 3) +
+  scale_x_continuous(limits = c(0, 0.45)) +
+  labs(x = "Standardised mean difference", y = NULL) +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.major.y = element_blank())
+
+
+
+#***----
+#Table 1----
+#***----
+library(gtsummary); library(flextable)
+
+table1 <- crude %>%
+  dplyr::select(BMI_21_label, 
+                age_2021_imputed, 
+                BMI_21, 
+                LS21, 
+                LS24,
+                obe21_bin, 
+                obePersist, 
+                ob_trajectory, 
+                typology_adult,
+                CWP_21, 
+                AWP_21, 
+                momPhys_21_large, 
+                dadPhys_21_large,
+                edu_21, 
+                workSche_cat) %>%
+  tbl_summary(
+    by = BMI_21_label,
+    missing_text = "Missing",
+    statistic = list(all_continuous() ~ "{mean} ({sd})",
+                     all_categorical() ~ "{n} ({p}%)"),
+    label = list(
+      age_2021_imputed  ~ "Age at baseline (years)",
+      BMI_21            ~ "BMI at baseline (kg/m²)",
+      LS21              ~ "Life satisfaction at baseline",
+      LS24              ~ "Life satisfaction at follow-up",
+      obe21_bin         ~ "Obesity status at baseline",
+      obePersist        ~ "Obesity persistence",
+      ob_trajectory     ~ "Obesity trajectory",
+      typology_adult    ~ "Adulthood weight status-perception typology",
+      CWP_21            ~ "Childhood weight perception",
+      AWP_21            ~ "Adulthood weight perception",
+      momPhys_21_large  ~ "Maternal body size (large)",
+      dadPhys_21_large  ~ "Paternal body size (large)",
+      edu_21            ~ "Additional education beyond nursing",
+      workSche_cat ~ "Occupational schedule"
+    )
+  ) %>%
+  add_overall() %>%
+  add_p(test = list(all_categorical() ~ "chisq.test"),
+        include = -c(obePersist, ob_trajectory, typology_adult)) %>%
+  modify_spanning_header(all_stat_cols() ~ "**BMI class at baseline (2021)**") %>%
+  bold_labels()
+
+table1
+table(crude$typology_adult, crude$BMI_21_label)
+table(crude$workSche_cat, crude$BMI_21_label)
+
+table1 %>% as_flex_table() %>% save_as_docx(path = "table1_v2.docx")
