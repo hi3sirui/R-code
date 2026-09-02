@@ -326,11 +326,11 @@ ds <- ds %>%
       dadPhys_21 >= 1 & dadPhys_21 <= 3 ~ 1,
       dadPhys_21 >= 4 & dadPhys_21 <= 9 ~ 0
     ),
-    parentPhys_cat = factor(case_when(
-      momPhys_21_large == 1 & dadPhys_21_large == 1 ~ "both",
-      momPhys_21_large == 1 | dadPhys_21_large == 1 ~ "one parent",
-      momPhys_21_large == 0 & dadPhys_21_large == 0 ~ "neither"
-    ), levels = c("neither", "one parent", "both"))
+    # parentPhys_cat = factor(case_when(
+    #   momPhys_21_large == 1 & dadPhys_21_large == 1 ~ "both",
+    #   momPhys_21_large == 1 | dadPhys_21_large == 1 ~ "one parent",
+    #   momPhys_21_large == 0 & dadPhys_21_large == 0 ~ "neither"
+    # ), levels = c("neither", "one parent", "both"))
   )
 
 
@@ -824,21 +824,106 @@ margPre_H2_AT_res <- run_margins(H2_AT_res, "typology_adult")
 
 
 #H3----
-H3_CWP_21 <- crude %>% run_polr("H3_CWP", LS24_cat ~ obe21_bin * CWP_21)
-H3_AWP_21 <- crude %>% run_polr("H3_AWP", LS24_cat ~ obe21_bin * AWP_21)
-H3_mom_21 <- crude %>% run_polr("H3_mom", LS24_cat ~ obe21_bin * momPhys_21_large)
-H3_dad_21 <- crude %>% run_polr("H3_dad", LS24_cat ~ obe21_bin * dadPhys_21_large)
+##CWP----
+###crude----
+H3_CWP_crude <- crude %>% run_polr(
+  "H3_CWP_crude", 
+  LS24_cat ~ obe21_bin * CWP_21 + age_2021_imputed
+  )
+nobs(H3_CWP_crude)
+margPre_H3_CWP_crude <- run_margins(H3_CWP_crude, "CWP_21")
+
+plot_margins(margPre_H3_CWP_21, "CWP_21",
+             x_label = "Childhood (before age 13) weight perception",
+             title = "Predicted probability of life satisfaction (2024) by childhood weight perception, crude sample")
+
+###restrictive----
+H3_CWP_res <- restrictive %>% run_polr(
+  "H3_CWP_res", 
+  LS24_cat ~ obe21_bin * CWP_21 + age_2021_imputed
+  )
+nobs(H3_CWP_res)
+margPre_H3_CWP_res <- run_margins(H3_CWP_res, "CWP_21")
+
+
+
+
+##AWP----
+###crude----
+H3_AWP_crude <- crude %>% run_polr(
+  "H3_AWP_crude", 
+  LS24_cat ~ obe21_bin * AWP_21 + age_2021_imputed
+  )
+nobs(H3_AWP_crude)
+margPre_H3_AWP_crude <- run_margins(H3_AWP_crude, "AWP_21")
+
+###restrictive----
+H3_AWP_res <- restrictive %>% run_polr(
+  "H3_AWP_res", 
+  LS24_cat ~ obe21_bin * AWP_21 + age_2021_imputed
+)
+nobs(H3_AWP_res)
+margPre_H3_AWP_res <- run_margins(H3_AWP_res, "AWP_21")
+
+
+
+##sex-disaggregated parental----
+###mom crude----
+H3_mom_crude <- crude %>% run_polr(
+  "H3_mom_crude", 
+  LS24_cat ~ obe21_bin * momPhys_21_large + age_2021_imputed
+  )
+nobs(H3_mom_crude)
+margPre_H3_mom_crude <- run_margins(H3_mom_crude, "momPhys_21_large")
+
+
+###mom restrictive----
+H3_mom_res <- restrictive %>% run_polr(
+  "H3_mom_res", 
+  LS24_cat ~ obe21_bin * momPhys_21_large + age_2021_imputed
+)
+nobs(H3_mom_res)
+margPre_H3_mom_res <- run_margins(H3_mom_res, "momPhys_21_large")
+
+
+###dad crude----
+H3_dad_crude <- crude %>% run_polr(
+  "H3_dad_crude", 
+  LS24_cat ~ obe21_bin * dadPhys_21_large + age_2021_imputed
+)
+nobs(H3_dad_crude)
+margPre_H3_dad_crude <- run_margins(H3_dad_crude, "dadPhys_21_large")
+
+
+###dad restrictive----
+H3_dad_res <- restrictive %>% run_polr(
+  "H3_dad_res", 
+  LS24_cat ~ obe21_bin * dadPhys_21_large + age_2021_imputed
+)
+nobs(H3_dad_res)
+margPre_H3_dad_res <- run_margins(H3_dad_res, "dadPhys_21_large")
 
 
 
 #H4----
-H4 <- crude %>% run_polr(
-  "H4",
+##crude----
+H4_crude <- crude %>% run_polr(
+  "H4_crude",
   LS24_cat ~ obe21_bin + age_2021_imputed + momPhys_21_large + dadPhys_21_large
 )
+nobs(H4_crude)
+margPre_H4_crude <- run_margins(H4_crude, "obe21_bin")
 
-ds %>% filter(!is.na(LS21) & !is.na(LS24)) %>% nrow()
-nrow(ds)
+
+##restrictive----
+H4_res <- restrictive %>% run_polr(
+  "H4_res",
+  LS24_cat ~ obe21_bin + age_2021_imputed + momPhys_21_large + dadPhys_21_large
+)
+nobs(H4_res)
+margPre_H4_res <- run_margins(H4_res, "obe21_bin")
+
+
 
 #non-participation analysis----
 library(dplyr)
