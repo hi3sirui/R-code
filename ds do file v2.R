@@ -9,7 +9,6 @@ View(ds)
 # test <-  read.csv("L:/Auditdata/Students/Lexi/Data_Lexi_v5.csv")
 test <- read.csv("/Users/siruizhang/Thesis/Data_Lexi_v6 - Copy.csv")
 
-
 #PREP----
 ds <- ds %>%
   rename(LS21 = quality_of_life_a_k,
@@ -31,16 +30,12 @@ ds <- ds %>%
          mixedSche_21 = work_schedule_d_k,
          age_2024 = age,
          LS24 = qol,
-         phyHealth_24 = phy_health_v2,
-         mentHealth_24 = men_health_v2,
          W24 = weight_k_v2,
          H24 = height_k_v2,
          CWP_24 = weight_statements_a_k_v2,
          AWP_24 = weight_statements_d_k_v2,
          momPhys_24 = physique_mom_k_v2,
          dadPhys_24 = physique_dad_k_v2,
-         famInh_24 = inheritage_icd_v2,
-         obeInh_24 = inheritage_icd_v3___5
   )
 
 
@@ -351,6 +346,7 @@ ds <- ds %>%
     )
   )
 
+table(test$work_schedule_a_k)
 
 #work schedules----
 ds <- ds %>%
@@ -370,7 +366,7 @@ ds <- ds %>%
 ds <- ds %>%
   mutate(eveSche_21_grp = factor(case_when(
     eveSche_21 == 1 ~ "yes",
-    eveSche_21 == 2 ~ "no"),
+    eveSche_21 == 0 ~ "no"),
     levels = c("no", "yes"))
   )
 
@@ -383,20 +379,9 @@ ds <- ds %>%
   )
 
 #work schedule categories----
-ds <- ds %>%
-  mutate(
-    workSche_cat = case_when(
-      mixedSche_21_grp == "yes" ~ "rotating",
-      nightSche_21_grp == "yes" ~ "regular night",
-      daySche_21_grp == "yes" | eveSche_21_grp == 1 ~ "regular day-or-eve",
-      TRUE ~ NA_character_
-    ),
-    workSche_cat = factor(
-      workSche_cat,
-      levels = c("regular day-or-eve", "regular night", "rotating")
-    )
-  )
+#see non-participation analysis
 
+# table(ds$eveSche_21, ds$eveSche_21_grp, useNA = "ifany")
 # table(ds$workSche_cat, useNA = "ifany")
 # sum(ds$mixedSche_21_grp=="yes", na.rm = TRUE)
 
@@ -1051,7 +1036,29 @@ ggplot(smd_df, aes(smd, variable)) +
   theme_minimal(base_size = 11) +
   theme(panel.grid.major.y = element_blank())
 
+###age distribution----
+bin_labels <- c("[25,30]", "(30,35]", "(35,40]", "(40,45]", "(45,50]",
+                "(50,55]", "(55,60]", "(60,65]", "(65,70]", "(70,75]",
+                "(75,80]", "(80,85]", "(85,90]", "90+")
 
+age_bins <- age_bins %>%
+  mutate(age_bin = factor(age_bin, levels = bin_labels))
+
+ggplot(age_bins, aes(age_bin, pct_lost)) +
+  geom_col() +
+  labs(x = "Age at baseline (5-year bins)", y = "% lost to follow-up") +
+  theme_minimal()
+
+####NA responses----
+ds %>%
+  mutate(age_missing = is.na(age_2021_imputed)) %>%
+  group_by(age_missing) %>%
+  summarise(
+    n = n(),
+    pct_missing_LS21 = mean(is.na(LS21)) * 100,
+    pct_missing_LS24 = mean(is.na(LS24)) * 100,
+    pct_missing_BMI21 = mean(is.na(BMI_21)) * 100
+  )
 
 #***----
 #Table 1----
