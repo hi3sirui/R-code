@@ -346,7 +346,6 @@ ds <- ds %>%
     )
   )
 
-table(test$work_schedule_a_k)
 
 #work schedules----
 ds <- ds %>%
@@ -384,15 +383,6 @@ ds <- ds %>%
 # table(ds$eveSche_21, ds$eveSche_21_grp, useNA = "ifany")
 # table(ds$workSche_cat, useNA = "ifany")
 # sum(ds$mixedSche_21_grp=="yes", na.rm = TRUE)
-
-#family history of overweight----
-ds <- ds %>%
-  mutate(
-    obeInh_24 = factor(case_when(
-      obeInh_24 == 0 ~ "no",
-      obeInh_24 == 1 ~ "yes"
-    ), levels = c("no", "yes"))
-  )
 
 #weight perceptions----
 ds <- ds %>%
@@ -776,6 +766,9 @@ ggplot(h2_forest, aes(OR, label)) +
         strip.text.y.left = element_text(angle = 0, face = "bold"),
         panel.grid.major.y = element_blank())
 
+##age-patterned?----
+crude %>% dplyr::group_by(ob_trajectory) %>% summarise(mean_age = mean(age_2021_imputed))
+crude %>% dplyr::group_by(obePersist) %>% summarise(mean_age = mean(age_2021_imputed))
 
 #H3----
 ##CWP----
@@ -799,9 +792,6 @@ H3_CWP_res <- restrictive %>% run_polr(
 nobs(H3_CWP_res)
 margPre_H3_CWP_res <- run_margins(H3_CWP_res, "CWP_21")
 
-
-
-
 ##AWP----
 ###crude----
 H3_AWP_crude <- crude %>% run_polr(
@@ -818,6 +808,8 @@ H3_AWP_res <- restrictive %>% run_polr(
 )
 nobs(H3_AWP_res)
 margPre_H3_AWP_res <- run_margins(H3_AWP_res, "AWP_21")
+
+table(crude$obe21_bin, crude$AWP_21)
 
 
 
@@ -911,6 +903,9 @@ H4_crude <- crude %>% run_polr(
 nobs(H4_crude)
 margPre_H4_crude <- run_margins(H4_crude, "obe21_bin")
 
+##GVIF----
+library(car)
+vif(H4_crude)
 
 ##restrictive----
 H4_res <- restrictive %>% run_polr(
@@ -1114,3 +1109,11 @@ table(crude$typology_adult, crude$BMI_21_label)
 table(crude$workSche_cat, crude$BMI_21_label)
 
 table1 %>% as_flex_table() %>% save_as_docx(path = "table1_v2.docx")
+
+
+#citations----
+citation("car")
+citation("marginaleffects")
+citation("DescTools")
+citation("smd")
+
