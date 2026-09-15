@@ -770,6 +770,25 @@ ggplot(h2_forest, aes(OR, label)) +
 crude %>% dplyr::group_by(ob_trajectory) %>% summarise(mean_age = mean(age_2021_imputed))
 crude %>% dplyr::group_by(obePersist) %>% summarise(mean_age = mean(age_2021_imputed))
 
+##cohen's kappa----
+library(irr)
+crude <- crude %>%
+  mutate(
+    BMI_21_perc_cat = factor(case_when(
+      BMI_21 >= 30 ~ "heavier", # obese = objectively heavier
+      BMI_21 >= 18.5 & BMI_21 < 30 ~ "no difference",  # healthy/overweight = reference
+      BMI_21 < 18.5 ~ "thinner" # underweight = objectively thinner
+    ), levels = c("no difference", "heavier", "thinner"))
+  )
+
+# Step 2: run kappa
+kappa_AWP <- kappa2(
+  cbind(as.character(crude$BMI_21_perc_cat),
+        as.character(crude$AWP_21)),
+  weight = "unweighted"
+)
+print(kappa_AWP)
+
 #H3----
 ##CWP----
 ###crude----
