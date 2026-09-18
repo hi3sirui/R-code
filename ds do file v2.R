@@ -745,7 +745,6 @@ extract_or <- function(model, block_label) {
 
 # 2. Combine all five models
 h2_forest <- bind_rows(
-  extract_or(H1_crude,            "Binary\n(ref: non-obese)"),
   extract_or(H2_severity_crude,   "Severity\n(ref: healthy weight)"),
   extract_or(H2_obePersist_crude, "Persistence\n(ref: obese at neither wave)"),
   extract_or(H2_AT_crude,         "AT typology\n(ref: concordant healthy)"),
@@ -759,11 +758,23 @@ h2_forest <- bind_rows(
       sub("^typology_adult", "", .) %>%
       sub("^ob_trajectory", "", .),
     block = factor(block, levels = unique(block))
-  ) %>%
-  group_by(block) %>%
-  mutate(label = forcats::fct_inorder(label)) %>%
-  ungroup()
+  )
 
+# define your desired order, per block, top-to-bottom on the plot
+# (ggplot draws the LAST level at the TOP, so list bottom-to-top)
+severity_order <- rev(c("Underweight", "Overweight", "Obesity I", "Obesity II", "Obesity III"))
+persistence_order <- rev(c("2021 only", "2024 only", "both waves"))
+trajectory_order <- rev(c("early-life obesity only", "adult-onset by 2021",
+                           "persistent obesity through 2021"))
+at_order <- c("concordant heavy", "over-perceiver", "under-perceiver")  # typed directly, confirmed above
+
+all_levels <- c(severity_order, persistence_order, trajectory_order, at_order)
+
+h2_forest <- h2_forest %>%
+  mutate(label = factor(label, levels = all_levels))
+
+h2_forest <- h2_forest %>%
+  mutate(label = factor(as.character(label), levels = unique(all_levels)))
 # 3. Sanity check before plotting — confirm the data actually has rows and the right columns
 print(h2_forest)
 nrow(h2_forest)   # should be > 0
@@ -780,7 +791,6 @@ ggplot(h2_forest, aes(x = estimate, y = label)) +
   ) +
   theme_minimal(base_size = 11) +
   theme(strip.text = element_text(face = "bold"))
-
 
 ##age-patterned?----
 crude %>% dplyr::group_by(ob_trajectory) %>% summarise(mean_age = mean(age_2021_imputed))
