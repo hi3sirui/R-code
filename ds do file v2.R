@@ -799,9 +799,70 @@ H3_CWP_crude <- crude %>% run_polr(
 nobs(H3_CWP_crude)
 margPre_H3_CWP_crude <- run_margins(H3_CWP_crude, "CWP_21")
 
+####comparison----
+comp_H3_CWP_crude <- avg_comparisons(
+  H3_CWP_crude,
+  variables = "obe21_bin",
+  by = "CWP_21"
+)
+
+avg_comparisons(
+  H3_CWP_crude,
+  variables = "obe21_bin",
+  by = "CWP_21",
+  hypothesis = ~pairwise | group
+)
+avg_predictions(H3_CWP_crude, variables = c("obe21_bin", "CWP_21"))
+avg_comparisons(H3_CWP_crude, variables = "obe21_bin", by = "CWP_21")
+
+####figure: crossed predicted prob----
 plot_margins(margPre_H3_CWP_21, "CWP_21",
              x_label = "Childhood (before age 13) weight perception",
              title = "Predicted probability of life satisfaction (2024) by childhood weight perception, crude sample")
+
+# reshape H3_CWP_crude predictions for plotting
+plot_data <- margPre_H3_CWP_crude %>%
+  filter(group == "satisfied") %>%
+  mutate(
+    CWP_21 = factor(CWP_21, levels = c("no difference", "heavier", "thinner")),
+    obe21_bin = factor(obe21_bin, levels = c("non-obese", "obese"))
+  )
+
+ggplot(plot_data, aes(x = CWP_21, y = estimate, color = obe21_bin)) +
+  geom_pointrange(
+    aes(ymin = conf.low, ymax = conf.high),
+    position = position_dodge(width = 0.3),
+    size = 0.7
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_color_manual(values = c("non-obese" = "#366092", "obese" = "#C0504D")) +
+  labs(
+    x = "Childhood weight perception",
+    y = "Predicted probability of satisfaction",
+    color = "Obesity status\n(baseline)",
+    title = "Predicted life satisfaction at follow-up by baseline obesity status\nand childhood weight perception"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "bottom")
+
+####figure: forest plot----
+gap_data <- comp_H3_CWP_crude %>%   # from avg_comparisons(H3_CWP_crude, variables = "obe21_bin", by = "CWP_21")
+  filter(group == "satisfied") %>%
+  mutate(CWP_21 = factor(CWP_21, levels = c("thinner", "no difference", "heavier")))
+
+ggplot(gap_data, aes(x = estimate, y = CWP_21)) +
+  geom_pointrange(
+    aes(xmin = conf.low, xmax = conf.high),
+    color = "#366092", size = 0.7
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(
+    x = "Obesity-associated gap in predicted satisfaction\n(obese − non-obese)",
+    y = "Childhood weight perception",
+    title = "Obesity-associated difference in predicted life satisfaction,\nby childhood weight perception group"
+  ) +
+  theme_minimal(base_size = 12)
 
 ###restrictive----
 H3_CWP_res <- restrictive %>% run_polr(
@@ -819,6 +880,41 @@ H3_AWP_crude <- crude %>% run_polr(
   )
 nobs(H3_AWP_crude)
 margPre_H3_AWP_crude <- run_margins(H3_AWP_crude, "AWP_21")
+
+####comparison----
+comp_H3_AWP_crude <- avg_comparisons(H3_AWP_crude, variables = "obe21_bin", by = "AWP_21")
+
+####figure: crossed predicted prob----
+plot_data_awp <- margPre_H3_AWP_crude %>%
+  filter(group == "satisfied") %>%
+  mutate(
+    AWP_21 = factor(AWP_21, levels = c("no difference", "heavier", "thinner")),
+    obe21_bin = factor(obe21_bin, levels = c("non-obese", "obese"))
+  )
+
+ggplot(plot_data_awp, aes(x = AWP_21, y = estimate, color = obe21_bin)) +
+  geom_pointrange(aes(ymin = conf.low, ymax = conf.high),
+                  position = position_dodge(width = 0.3), size = 0.7) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_color_manual(values = c("non-obese" = "#366092", "obese" = "#C0504D")) +
+  labs(x = "Adulthood weight perception", y = "Predicted probability of satisfaction",
+       color = "Obesity status\n(baseline)",
+       title = "Predicted life satisfaction at follow-up by baseline obesity\nstatus and adulthood weight perception") +
+  theme_minimal(base_size = 12) + theme(legend.position = "bottom")
+
+####figure: forest plot----
+gap_data_awp <- comp_H3_AWP_crude %>%   # avg_comparisons(H3_AWP_crude, variables = "obe21_bin", by = "AWP_21")
+  filter(group == "satisfied") %>%
+  mutate(AWP_21 = factor(AWP_21, levels = c("thinner", "heavier", "no difference")))
+
+ggplot(gap_data_awp, aes(x = estimate, y = AWP_21)) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high), color = "#366092", size = 0.7) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = "Obesity-associated gap in predicted satisfaction\n(obese \u2212 non-obese)",
+       y = "Adulthood weight perception",
+       title = "Obesity-associated difference in predicted life satisfaction,\nby adulthood weight perception group") +
+  theme_minimal(base_size = 12)
 
 ###restrictive----
 H3_AWP_res <- restrictive %>% run_polr(
@@ -841,6 +937,22 @@ H3_mom_crude <- crude %>% run_polr(
 nobs(H3_mom_crude)
 margPre_H3_mom_crude <- run_margins(H3_mom_crude, "momPhys_21_large")
 
+####comparison----
+comp_H3_mom_crude  <- avg_comparisons(H3_mom_crude,  variables = "obe21_bin", by = "momPhys_21_large")
+
+####figure: crossed predicted prob-----
+gap_data_mom <- comp_H3_mom_crude %>%
+  filter(group == "satisfied") %>%
+  mutate(momPhys_21_large = factor(momPhys_21_large, levels = c("large", "not large")))
+
+ggplot(gap_data_mom, aes(x = estimate, y = momPhys_21_large)) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high), color = "#366092", size = 0.7) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = "Obesity-associated gap in predicted satisfaction\n(obese \u2212 non-obese)",
+       y = "Maternal body size",
+       title = "Obesity-associated difference in predicted life satisfaction,\nby maternal body size") +
+  theme_minimal(base_size = 12)
 
 ###mom restrictive----
 H3_mom_res <- restrictive %>% run_polr(
@@ -859,6 +971,22 @@ H3_dad_crude <- crude %>% run_polr(
 nobs(H3_dad_crude)
 margPre_H3_dad_crude <- run_margins(H3_dad_crude, "dadPhys_21_large")
 
+####comparison----
+comp_H3_dad_crude  <- avg_comparisons(H3_dad_crude,  variables = "obe21_bin", by = "dadPhys_21_large")
+
+####figure: crossed predicted prob----
+gap_data_dad <- comp_H3_dad_crude %>%
+  filter(group == "satisfied") %>%
+  mutate(dadPhys_21_large = factor(dadPhys_21_large, levels = c("large", "not large")))
+
+ggplot(gap_data_dad, aes(x = estimate, y = dadPhys_21_large)) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high), color = "#366092", size = 0.7) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = "Obesity-associated gap in predicted satisfaction\n(obese \u2212 non-obese)",
+       y = "Paternal body size",
+       title = "Obesity-associated difference in predicted life satisfaction,\nby paternal body size") +
+  theme_minimal(base_size = 12)
 
 ###dad restrictive----
 H3_dad_res <- restrictive %>% run_polr(
@@ -1079,6 +1207,20 @@ ds %>%
 #***----
 library(gtsummary); library(flextable)
 
+crude <- crude %>%
+  mutate(
+    workSchedule_cat = case_when(
+      mixedSche_21 == 1                     ~ "Rotating",
+      nightSche_21 == 1                     ~ "Regular night",
+      daySche_21  == 1 | eveSche_21 == 1    ~ "Regular day or evening",
+      TRUE                                  ~ NA_character_
+    ),
+    workSchedule_cat = factor(
+      workSchedule_cat,
+      levels = c("Regular day or evening", "Regular night", "Rotating")
+    )
+  )
+
 table1 <- crude %>%
   dplyr::select(BMI_21_label, 
                 age_2021_imputed, 
@@ -1094,7 +1236,7 @@ table1 <- crude %>%
                 momPhys_21_large, 
                 dadPhys_21_large,
                 edu_21, 
-                workSche_cat) %>%
+                workSchedule_cat) %>%
   tbl_summary(
     by = BMI_21_label,
     missing_text = "Missing",
@@ -1114,7 +1256,7 @@ table1 <- crude %>%
       momPhys_21_large  ~ "Maternal body size (large)",
       dadPhys_21_large  ~ "Paternal body size (large)",
       edu_21            ~ "Additional education beyond nursing",
-      workSche_cat ~ "Occupational schedule"
+      workSchedule_cat ~ "Occupational schedule"
     )
   ) %>%
   add_overall() %>%
@@ -1135,4 +1277,56 @@ citation("car")
 citation("marginaleffects")
 citation("DescTools")
 citation("smd")
+
+#???revising H3----
+library(marginaleffects)
+##CWP----
+margPre_H3_CWP_crude <- avg_predictions(
+  H3_CWP_crude,
+  variables = c("obe21_bin", "CWP_21")
+)
+
+comp_H3_CWP_crude <- avg_comparisons(
+  H3_CWP_crude,
+  variables = "obe21_bin",
+  by = "CWP_21"
+)
+
+avg_comparisons(
+  H3_CWP_crude,
+  variables = "obe21_bin",
+  by = "CWP_21",
+  hypothesis = ~pairwise | group
+)
+# the six cell probabilities
+avg_predictions(H3_CWP_crude, variables = c("obe21_bin", "CWP_21"))
+
+# the three gaps themselves (not yet the difference between them)
+avg_comparisons(H3_CWP_crude, variables = "obe21_bin", by = "CWP_21")
+
+##AWP----
+margPre_H3_AWP_crude <- avg_predictions(
+  H3_AWP_crude,
+  variables = c("obe21_bin", "AWP_21")
+)
+
+avg_predictions(H3_AWP_crude, variables = c("obe21_bin", "AWP_21"))
+avg_comparisons(H3_AWP_crude, variables = "obe21_bin", by = "AWP_21")
+avg_comparisons(H3_AWP_crude, variables = "obe21_bin", by = "AWP_21", hypothesis = ~pairwise | group)
+
+##mom crude----
+margPre_H3_mom_crude <- avg_predictions(
+  H3_mom_crude,
+  variables = c("obe21_bin", "momPhys_21_large")
+)
+avg_predictions(H3_mom_crude, variables = c("obe21_bin", "momPhys_21_large"))
+avg_comparisons(H3_mom_crude, variables = "obe21_bin", by = "momPhys_21_large")
+
+##dad crude----
+margPre_H3_dad_crude <- avg_predictions(
+  H3_dad_crude,
+  variables = c("obe21_bin", "dadPhys_21_large")
+)
+avg_predictions(H3_dad_crude, variables = c("obe21_bin", "dadPhys_21_large"))
+avg_comparisons(H3_dad_crude, variables = "obe21_bin", by = "dadPhys_21_large")
 
