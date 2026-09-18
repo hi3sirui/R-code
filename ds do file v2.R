@@ -805,39 +805,6 @@ kappa_AWP <- kappa2(
 )
 print(kappa_AWP)
 
-##figure for all of H2----
-library(broom)
-library(dplyr)
-library(ggplot2)
-
-h2_data <- bind_rows(
-  tidy(H2_severity_crude, exponentiate = TRUE, conf.int = TRUE) %>%
-    mutate(operationalization = "Severity"),
-  tidy(H2_obePersist_crude, exponentiate = TRUE, conf.int = TRUE) %>%
-    mutate(operationalization = "Persistence"),
-  tidy(H2_obTraj_crude, exponentiate = TRUE, conf.int = TRUE) %>%
-    mutate(operationalization = "Trajectory"),
-  tidy(H2_AT_crude, exponentiate = TRUE, conf.int = TRUE) %>%
-    mutate(operationalization = "AT typology")
-) %>%
-  filter(term != "age_2021_imputed") %>%   # drop the age covariate row from each model
-  mutate(
-    operationalization = factor(operationalization,
-                                levels = c("Severity", "Persistence", "Trajectory", "AT typology")),
-    term = gsub("^BMI_21_label|^obePersist|^ob_trajectory|^typology_adult", "", term)
-  )
-
-ggplot(h2_data, aes(x = estimate, y = term)) +
-  geom_pointrange(aes(xmin = conf.low, xmax = conf.high), color = "#366092", size = 0.6) +
-  geom_vline(xintercept = 1, linetype = "dashed", color = "grey50") +
-  facet_wrap(~operationalization, scales = "free_y", ncol = 2) +
-  labs(
-    x = "Odds ratio (95% CI)",
-    y = NULL,
-    title = "Associations between four alternative exposure operationalizations\nand life satisfaction at follow-up, adjusted for age at baseline"
-  ) +
-  theme_minimal(base_size = 11) +
-  theme(strip.text = element_text(face = "bold"))
 
 #H3----
 ##CWP----
