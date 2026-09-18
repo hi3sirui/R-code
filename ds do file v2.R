@@ -708,11 +708,10 @@ H2_AT_crude <- crude %>% run_polr(
 nobs(H2_AT_crude)
 margPre_H2_AT_crude <- run_margins(H2_AT_crude, "typology_adult")
 
-plot_margins(margPre_typology_AWP, "typology_adult",
+plot_margins(margPre_H2_AT_crude, "typology_adult",
              x_label = "Adulthood weight status-perception typology",
              title = "Predicted probability of life satisfaction (2024) by adulthood weight status-perception typology, crude sample")
-table(crude$typology_adult, useNA = "ifany")
-table(crude$obe21_bin, crude$AWP_21, useNA = "ifany")
+
 
 
 ###restrictive----
@@ -726,16 +725,25 @@ margPre_H2_AT_res <- run_margins(H2_AT_res, "typology_adult")
 ##***----
 ##forest plot----
 ##***----
-library(dplyr); library(ggplot2); library(tibble)
+library(broom)
+library(dplyr)
+library(ggplot2)
 
-extract_or <- function(model, block, drop = "age_2021_imputed") {
-  ci <- suppressMessages(exp(cbind(OR = coef(model), confint(model))))
-  as_tibble(ci, rownames = "term") %>%
-    rename(lower = `2.5 %`, upper = `97.5 %`) %>%
-    filter(!term %in% drop) %>%
-    mutate(block = block)
+# 1. Extract OR + CI directly from each fitted model, no manual entry
+extract_or <- function(model, block_label) {
+  tidy(model, exponentiate = TRUE, conf.int = TRUE) %>%
+    filter(!term %in% c("age_2021_imputed", "(Intercept)",
+                        "dissatisfied|neutral", "neutral|satisfied")) %>%
+    transmute(
+      term,
+      estimate,
+      conf.low,
+      conf.high,
+      block = block_label
+    )
 }
 
+# 2. Combine all five models
 h2_forest <- bind_rows(
   extract_or(H1_crude,            "Binary\n(ref: non-obese)"),
   extract_or(H2_severity_crude,   "Severity\n(ref: healthy weight)"),
@@ -750,21 +758,29 @@ h2_forest <- bind_rows(
       sub("^obePersist", "", .) %>%
       sub("^typology_adult", "", .) %>%
       sub("^ob_trajectory", "", .),
-    block = factor(block, levels = unique(block)),
-    label = factor(label, levels = rev(label))
-  )
+    block = factor(block, levels = unique(block))
+  ) %>%
+  group_by(block) %>%
+  mutate(label = forcats::fct_inorder(label)) %>%
+  ungroup()
 
-ggplot(h2_forest, aes(OR, label)) +
-  geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
-  geom_errorbarh(aes(xmin = lower, xmax = upper), height = .2) +
-  geom_point(size = 2.6) +
-  facet_grid(block ~ ., scales = "free_y", space = "free_y", switch = "y") +
-  scale_x_continuous(trans = "log", breaks = c(.4,.5,.6,.8,1.0)) +
-  labs(x = "Odds ratio (95% CI)", y = NULL) +
+# 3. Sanity check before plotting — confirm the data actually has rows and the right columns
+print(h2_forest)
+nrow(h2_forest)   # should be > 0
+
+# 4. Plot
+ggplot(h2_forest, aes(x = estimate, y = label)) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high), color = "#366092", size = 0.6) +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "grey50") +
+  facet_wrap(~block, scales = "free_y", ncol = 2) +
+  labs(
+    x = "Odds ratio (95% CI)",
+    y = NULL,
+    title = "Associations between four alternative exposure operationalizations\nand life satisfaction at follow-up, adjusted for age at baseline"
+  ) +
   theme_minimal(base_size = 11) +
-  theme(strip.placement = "outside",
-        strip.text.y.left = element_text(angle = 0, face = "bold"),
-        panel.grid.major.y = element_blank())
+  theme(strip.text = element_text(face = "bold"))
+
 
 ##age-patterned?----
 crude %>% dplyr::group_by(ob_trajectory) %>% summarise(mean_age = mean(age_2021_imputed))
@@ -789,6 +805,40 @@ kappa_AWP <- kappa2(
 )
 print(kappa_AWP)
 
+##figure for all of H2----
+library(broom)
+library(dplyr)
+library(ggplot2)
+
+h2_data <- bind_rows(
+  tidy(H2_severity_crude, exponentiate = TRUE, conf.int = TRUE) %>%
+    mutate(operationalization = "Severity"),
+  tidy(H2_obePersist_crude, exponentiate = TRUE, conf.int = TRUE) %>%
+    mutate(operationalization = "Persistence"),
+  tidy(H2_obTraj_crude, exponentiate = TRUE, conf.int = TRUE) %>%
+    mutate(operationalization = "Trajectory"),
+  tidy(H2_AT_crude, exponentiate = TRUE, conf.int = TRUE) %>%
+    mutate(operationalization = "AT typology")
+) %>%
+  filter(term != "age_2021_imputed") %>%   # drop the age covariate row from each model
+  mutate(
+    operationalization = factor(operationalization,
+                                levels = c("Severity", "Persistence", "Trajectory", "AT typology")),
+    term = gsub("^BMI_21_label|^obePersist|^ob_trajectory|^typology_adult", "", term)
+  )
+
+ggplot(h2_data, aes(x = estimate, y = term)) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high), color = "#366092", size = 0.6) +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "grey50") +
+  facet_wrap(~operationalization, scales = "free_y", ncol = 2) +
+  labs(
+    x = "Odds ratio (95% CI)",
+    y = NULL,
+    title = "Associations between four alternative exposure operationalizations\nand life satisfaction at follow-up, adjusted for age at baseline"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(strip.text = element_text(face = "bold"))
+
 #H3----
 ##CWP----
 ###crude----
@@ -797,7 +847,9 @@ H3_CWP_crude <- crude %>% run_polr(
   LS24_cat ~ obe21_bin * CWP_21 + age_2021_imputed
   )
 nobs(H3_CWP_crude)
-margPre_H3_CWP_crude <- run_margins(H3_CWP_crude, "CWP_21")
+#margPre_H3_CWP_crude <- run_margins(H3_CWP_crude, "CWP_21")
+margPre_H3_CWP_crude <- avg_predictions(H3_CWP_crude, variables = c("obe21_bin", "CWP_21"))
+margPre_H3_CWP_crude
 
 ####comparison----
 comp_H3_CWP_crude <- avg_comparisons(
@@ -806,21 +858,7 @@ comp_H3_CWP_crude <- avg_comparisons(
   by = "CWP_21"
 )
 
-avg_comparisons(
-  H3_CWP_crude,
-  variables = "obe21_bin",
-  by = "CWP_21",
-  hypothesis = ~pairwise | group
-)
-avg_predictions(H3_CWP_crude, variables = c("obe21_bin", "CWP_21"))
-avg_comparisons(H3_CWP_crude, variables = "obe21_bin", by = "CWP_21")
-
 ####figure: crossed predicted prob----
-plot_margins(margPre_H3_CWP_21, "CWP_21",
-             x_label = "Childhood (before age 13) weight perception",
-             title = "Predicted probability of life satisfaction (2024) by childhood weight perception, crude sample")
-
-# reshape H3_CWP_crude predictions for plotting
 plot_data <- margPre_H3_CWP_crude %>%
   filter(group == "satisfied") %>%
   mutate(
@@ -846,7 +884,7 @@ ggplot(plot_data, aes(x = CWP_21, y = estimate, color = obe21_bin)) +
   theme(legend.position = "bottom")
 
 ####figure: forest plot----
-gap_data <- comp_H3_CWP_crude %>%   # from avg_comparisons(H3_CWP_crude, variables = "obe21_bin", by = "CWP_21")
+gap_data <- comp_H3_CWP_crude %>%
   filter(group == "satisfied") %>%
   mutate(CWP_21 = factor(CWP_21, levels = c("thinner", "no difference", "heavier")))
 
@@ -858,7 +896,7 @@ ggplot(gap_data, aes(x = estimate, y = CWP_21)) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
   scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
   labs(
-    x = "Obesity-associated gap in predicted satisfaction\n(obese − non-obese)",
+    x = "Obesity-associated gap in predicted satisfaction\n(obese \u2212 non-obese)",
     y = "Childhood weight perception",
     title = "Obesity-associated difference in predicted life satisfaction,\nby childhood weight perception group"
   ) +
