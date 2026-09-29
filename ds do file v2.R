@@ -644,6 +644,10 @@ H2_obTraj_crude <- crude %>%
   )
 nobs(H2_obTraj_crude)
 margPre_H2_obTraj_crude <- run_margins(H2_obTraj_crude, "ob_trajectory")
+
+avg_comparisons(H2_obTraj_crude, variables = "ob_trajectory",
+                hypothesis = ~pairwise | group)
+
 ###restrictive----
 H2_obTraj_res <- restrictive %>%
   run_polr(
@@ -687,6 +691,8 @@ plot_margins(margPre_H2_obePersist_crude, "obePersist",
              x_label = "Obesity persistence",
              title = "Predicted probability of life satisfaction (2024) by obesity persistence, crude sample")
 
+avg_comparisons(H2_obePersist_crude, variables = "obePersist",
+                hypothesis = ~pairwise | group)
 
 ###restrictive----
 H2_obePersist_res <- restrictive %>% run_polr(
