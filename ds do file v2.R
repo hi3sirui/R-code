@@ -830,9 +830,7 @@ H3_CWP_crude <- crude %>% run_polr(
   LS24_cat ~ obe21_bin * CWP_21 + age_2021_imputed
   )
 nobs(H3_CWP_crude)
-#margPre_H3_CWP_crude <- run_margins(H3_CWP_crude, "CWP_21")
-margPre_H3_CWP_crude <- avg_predictions(H3_CWP_crude, variables = c("obe21_bin", "CWP_21"))
-margPre_H3_CWP_crude
+avg_predictions(H3_CWP_crude, variables = c("obe21_bin", "CWP_21"), type = "probs")
 
 ####comparison----
 comp_H3_CWP_crude <- avg_comparisons(
@@ -892,6 +890,8 @@ H3_CWP_res <- restrictive %>% run_polr(
   )
 nobs(H3_CWP_res)
 margPre_H3_CWP_res <- run_margins(H3_CWP_res, "CWP_21")
+avg_predictions(H3_CWP_res, variables = c("obe21_bin", "CWP_21"), type = "probs")
+
 
 ##AWP----
 ###crude----
@@ -901,6 +901,8 @@ H3_AWP_crude <- crude %>% run_polr(
   )
 nobs(H3_AWP_crude)
 margPre_H3_AWP_crude <- run_margins(H3_AWP_crude, "AWP_21")
+avg_predictions(H3_AWP_crude, variables = c("obe21_bin", "AWP_21"), type = "probs")
+
 
 ####comparison----
 comp_H3_AWP_crude <- avg_comparisons(H3_AWP_crude, variables = "obe21_bin", by = "AWP_21")
@@ -944,6 +946,8 @@ H3_AWP_res <- restrictive %>% run_polr(
 )
 nobs(H3_AWP_res)
 margPre_H3_AWP_res <- run_margins(H3_AWP_res, "AWP_21")
+avg_predictions(H3_AWP_res, variables = c("obe21_bin", "AWP_21"), type = "probs")
+
 
 table(crude$obe21_bin, crude$AWP_21)
 
@@ -960,6 +964,7 @@ margPre_H3_mom_crude <- run_margins(H3_mom_crude, "momPhys_21_large")
 
 ####comparison----
 comp_H3_mom_crude  <- avg_comparisons(H3_mom_crude,  variables = "obe21_bin", by = "momPhys_21_large")
+avg_predictions(H3_mom_crude, variables = c("obe21_bin", "momPhys_21_large"), type = "probs")
 
 ####figure: crossed predicted prob-----
 gap_data_mom <- comp_H3_mom_crude %>%
@@ -994,6 +999,8 @@ margPre_H3_dad_crude <- run_margins(H3_dad_crude, "dadPhys_21_large")
 
 ####comparison----
 comp_H3_dad_crude  <- avg_comparisons(H3_dad_crude,  variables = "obe21_bin", by = "dadPhys_21_large")
+avg_predictions(H3_dad_crude, variables = c("obe21_bin", "dadPhys_21_large"), type = "probs")
+
 
 ####figure: crossed predicted prob----
 gap_data_dad <- comp_H3_dad_crude %>%
@@ -1086,10 +1093,13 @@ margPre_H4_res <- run_margins(H4_res, "obe21_bin")
 ##***----
 ##figure----
 ##***----
+library(broom)
 h4_compare <- bind_rows(
   extract_or(H1_crude, "Unadjusted") %>% filter(grepl("obe21_bin", term)),
   extract_or(H4_crude, "Adjusted for age and\nsex-disaggregated parental body size") %>% filter(grepl("obe21_bin", term))
 )
+h4_compare <- h4_compare %>%
+  rename(OR = estimate, lower = conf.low, upper = conf.high)
 
 ggplot(h4_compare, aes(OR, block)) +
   geom_vline(xintercept = 1, linetype = "dashed", colour = "grey60") +
