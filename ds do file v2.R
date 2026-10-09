@@ -337,6 +337,32 @@ ds <- ds %>%
                               labels = c("not large", "large"))
   )
 
+##body size A~B, crude----
+phys21_strict <- crude %>%
+  mutate(
+    momPhys_21_strict = factor(
+      if_else(momPhys_21 %in% c(1, 2), "large", "not large"),
+      levels = c("not large", "large")
+    ),
+    dadPhys_21_strict = factor(
+      if_else(dadPhys_21 %in% c(1, 2), "large", "not large"),
+      levels = c("not large", "large")
+    )
+  )
+
+##body size A~B, restrictive----
+phys21_strict_res <- restrictive %>%
+  mutate(
+    momPhys_21_strict_res = factor(
+      if_else(momPhys_21 %in% c(1, 2), "large", "not large"),
+      levels = c("not large", "large")
+    ),
+    dadPhys_21_strict_res = factor(
+      if_else(dadPhys_21 %in% c(1, 2), "large", "not large"),
+      levels = c("not large", "large")
+    )
+  )
+
 #edu----
 ds <- ds %>%
   mutate(
@@ -1112,7 +1138,7 @@ ggplot(h4_compare, aes(OR, block)) +
   theme(panel.grid.major.y = element_blank(),
         aspect.ratio = .22)
 
-
+getwd()
 
 
 #Non-participation analysis----
@@ -1360,4 +1386,32 @@ margPre_H3_dad_crude <- avg_predictions(
 )
 avg_predictions(H3_dad_crude, variables = c("obe21_bin", "dadPhys_21_large"))
 avg_comparisons(H3_dad_crude, variables = "obe21_bin", by = "dadPhys_21_large")
+
+#Sensitivity analysis----
+##stricter body size, crude----
+H3_mom_strict <- phys21_strict %>%
+  run_polr("H3_mom_strict",
+           LS24_cat ~ obe21_bin * momPhys_21_strict + age_2021_imputed)
+nobs(H3_mom_strict)
+
+H3_dad_strict <- phys21_strict %>%
+  run_polr("H3_dad_strict",
+           LS24_cat ~ obe21_bin * dadPhys_21_strict + age_2021_imputed)
+
+
+table(phys21_strict$momPhys_21_strict, phys21_strict$obe21_bin)
+table(phys21_strict$dadPhys_21_strict, phys21_strict$obe21_bin)
+
+##stricter body size, restrictive----
+H3_mom_strict_res <- phys21_strict_res %>%
+  run_polr("H3_mom_strict_res",
+           LS24_cat ~ obe21_bin * momPhys_21_strict_res + age_2021_imputed)
+
+H3_dad_strict_res <- phys21_strict_res %>%
+  run_polr("H3_dad_strict_res",
+           LS24_cat ~ obe21_bin * dadPhys_21_strict_res + age_2021_imputed)
+
+table(phys21_strict_res$momPhys_21_strict_res, phys21_strict_res$obe21_bin)
+table(phys21_strict_res$dadPhys_21_strict_res, phys21_strict_res$obe21_bin)
+
 
