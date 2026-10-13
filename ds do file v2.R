@@ -812,7 +812,7 @@ print(h2_forest)
 nrow(h2_forest)   # should be > 0
 
 # 4. Plot
-ggplot(h2_forest, aes(x = estimate, y = label)) +
+plot_fig2 <- ggplot(h2_forest, aes(x = estimate, y = label)) +
   geom_pointrange(aes(xmin = conf.low, xmax = conf.high), color = "#366092", size = 0.6) +
   geom_vline(xintercept = 1, linetype = "dashed", color = "grey50") +
   facet_wrap(~block, scales = "free_y", ncol = 2) +
@@ -823,6 +823,10 @@ ggplot(h2_forest, aes(x = estimate, y = label)) +
   ) +
   theme_minimal(base_size = 11) +
   theme(strip.text = element_text(face = "bold"))
+
+ggsave("fig_h2_forest.png", plot_fig2,
+       width = 6.3, height = 4.5, units = "in",
+       dpi = 600, device = ragg::agg_png, bg = "white")
 
 ##age-patterned?----
 crude %>% dplyr::group_by(ob_trajectory) %>% summarise(mean_age = mean(age_2021_imputed))
@@ -1127,18 +1131,19 @@ h4_compare <- bind_rows(
 h4_compare <- h4_compare %>%
   rename(OR = estimate, lower = conf.low, upper = conf.high)
 
-ggplot(h4_compare, aes(OR, block)) +
+h4_fig <- ggplot(h4_compare, aes(estimate, block)) +
   geom_vline(xintercept = 1, linetype = "dashed", colour = "grey60") +
-  geom_errorbarh(aes(xmin = lower, xmax = upper), height = .12) +
+  geom_errorbar(aes(xmin = conf.low, xmax = conf.high), width = .12, orientation = "y") +
   geom_point(size = 3) +
-  scale_x_continuous(trans = "log", breaks = c(.5,.6,.7,.8,.9,1.0),
+  scale_x_continuous(transform = "log", breaks = c(.5, .6, .7, .8, .9, 1.0),
                      limits = c(.48, 1.05)) +
   labs(x = "Odds ratio (95% CI)", y = NULL) +
   theme_minimal(base_size = 11) +
   theme(panel.grid.major.y = element_blank(),
         aspect.ratio = .22)
-
-getwd()
+h4_fig
+ggsave("figure_h4_confounders.png", h4_fig,
+       width = 10, height = 7.5, dpi = 300)
 
 
 #Non-participation analysis----
@@ -1155,15 +1160,17 @@ nrow(crude) + nrow(excluded) == nrow(ds)
 
 ###excluded 16210----
 build_schedule <- function(df) {
-  df %>%
-    mutate(
-      workSchedule_3cat = case_when(
-        mixedSche_21 == 1 ~ "rotating",
-        nightSche_21 == 1 ~ "regular night",
-        daySche_21 == 1 | eveSche_21 == 1 ~ "regular day-or-evening",
+  df %>% mutate(
+    workSchedule_cat = factor(
+      case_when(
+        mixedSche_21 == 1 ~ "Rotating",
+        nightSche_21 == 1 ~ "Regular night",
+        daySche_21 == 1 | eveSche_21 == 1 ~ "Regular day or evening",
         TRUE ~ NA_character_
-      )
+      ),
+      levels = c("Regular day or evening", "Regular night", "Rotating")
     )
+  )
 }
 
 crude_tagged    <- build_schedule(crude)    %>% mutate(group = "Crude sample")
@@ -1188,23 +1195,10 @@ excluded_reasons <- ds %>%
       TRUE ~ NA_character_
     )
   )
-
 table(excluded_reasons$exclusion_reason)
 
 ###SMD----
 library(tableone)
-
-excluded_reasons <- ds %>%
-  filter(is.na(BMI_21) | is.na(LS24)) %>%
-  mutate(
-    exclusion_reason = case_when(
-      is.na(LS24) & is.na(BMI_21) ~ "Both missing (LS24 and BMI21)",
-      is.na(LS24) & !is.na(BMI_21) ~ "Lost to follow-up only (missing LS24)",
-      !is.na(LS24) & is.na(BMI_21) ~ "Missing/implausible baseline BMI only",
-      TRUE ~ NA_character_
-    )
-  )
-
 lost_to_followup <- excluded_reasons %>% filter(exclusion_reason == "Lost to follow-up only (missing LS24)")
 missing_exposure  <- excluded_reasons %>% filter(exclusion_reason == "Missing/implausible baseline BMI only")
 
@@ -1220,13 +1214,27 @@ print(tab_two, smd = TRUE)
 ####***----
 ####love plots----
 ####***----
-smd_df <- tibble(
-  variable = c("Age", "Baseline life satisfaction", "Occupational schedule",
-               "Baseline BMI", "Education beyond nursing"),
-  smd = c(0.386, 0.126, 0.072, 0.047, 0.031)
-) %>% mutate(variable = reorder(variable, smd))
+library(tibble)
+library(dplyr)
 
-ggplot(smd_df, aes(smd, variable)) +
+# ExtractSmd pulls the SMD for every variable out of the table object
+smd_vals <- ExtractSmd(tab1)
+
+smd_df <- tibble(
+  variable = rownames(smd_vals),
+  smd = as.numeric(smd_vals[, 1])
+) %>%
+  # rename to the display labels you want on the plot
+  mutate(variable = recode(variable,
+                           age_2021_imputed          = "Age",
+                           LS21                      = "Baseline life satisfaction",
+                           workSchedule_3cat         = "Occupational schedule",
+                           BMI_21                    = "Baseline BMI",
+                           edu_21                    = "Education beyond nursing"
+  )) %>%
+  mutate(variable = reorder(variable, smd))
+
+sensitivity_fig <- ggplot(smd_df, aes(smd, variable)) +
   geom_vline(xintercept = 0.1, linetype = "dashed", colour = "grey50") +
   geom_segment(aes(x = 0, xend = smd, yend = variable), colour = "grey75") +
   geom_point(size = 3) +
@@ -1234,19 +1242,9 @@ ggplot(smd_df, aes(smd, variable)) +
   labs(x = "Standardised mean difference", y = NULL) +
   theme_minimal(base_size = 11) +
   theme(panel.grid.major.y = element_blank())
-
-###age distribution----
-bin_labels <- c("[25,30]", "(30,35]", "(35,40]", "(40,45]", "(45,50]",
-                "(50,55]", "(55,60]", "(60,65]", "(65,70]", "(70,75]",
-                "(75,80]", "(80,85]", "(85,90]", "90+")
-
-age_bins <- age_bins %>%
-  mutate(age_bin = factor(age_bin, levels = bin_labels))
-
-ggplot(age_bins, aes(age_bin, pct_lost)) +
-  geom_col() +
-  labs(x = "Age at baseline (5-year bins)", y = "% lost to follow-up") +
-  theme_minimal()
+sensitivity_fig
+ggsave("figure_sensitivity_analysis.png", sensitivity_fig,
+       width = 10, height = 7.5, dpi = 300)
 
 ####NA responses----
 ds %>%
